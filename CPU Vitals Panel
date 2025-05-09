@@ -80,7 +80,7 @@ ${voffset -5}${color2}$alignr${execigraph 1 "sensors | grep 'Package id 0' | awk
 ${font Debian:size=7}${voffset -18}${color white}≥80°C
 ${font Debian:size=7}${voffset 2}${color white}≤60°C
 #
-# CPU AIO Pump & Fan ########################################################
+# CPU AIO Pump ########################################################
 #
 ${font}${voffset 0}${color2}CPU AIO Pump${color0}${alignr}${execi 5 sensors | grep 'Processor Fan' | cut -c18-21 | awk '{fanspd = $1; max_rpm = 3200; fanspd = int(((fanspd - 0) / max_rpm) * 100 + 0.5); print (fanspd > 100 ? 100 : fanspd)}'} %
 ${voffset -5}${color2}$alignr${execigraph 5 "sensors | grep 'Processor Fan' | cut -c18-21 | awk '{max_rpm = 3200; print int((($1 - 1500) / max_rpm) * 100 + 0.5)}' | awk '{print ($1 > 100 ? 100 : $1)}' | awk '{print ($1 < 4 ? 4 : $1)}'" 17,165 00ff00 ff0000 -t}
@@ -97,13 +97,13 @@ ${color2}Case Fan${color0}${alignr}${execi 5 sensors | grep 'Motherboard Fan' | 
 #
 # Various Temps ######################################################
 #
-${voffset 2}${color2}ISA CPU Temp${color1}${alignr}${execi 5 sensors | grep 'CPU:' | cut -c18-23} °C
-${color2}SkyLake Chipset${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed -n '2p' | cut -c14-19} °C
-${color2}PCIe WiFi/BT${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed '1q' | cut -c14-19} °C
-${color2}NVMe SSE${color1}${alignr}${execi 5 sensors | grep 'Composite' | cut -c14-19} °C
-${color2}ISA Ambient${color1}${alignr}${execi 5 sensors | grep 'Ambient:' | cut -c18-23} °C
-${color2}ACPI Zone 1${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed -n '3p' | cut -c14-19} °C
-${color2}ACPI Zone 2${color1}${alignr}${execi 5 sensors | grep 'temp2' | sed '1q' | cut -c14-19} °C
+${voffset 2}${color2}ISA CPU Temp${color1}${alignr}${execi 5 sensors | grep 'CPU:' | cut -c20-23} °C
+${color2}SkyLake Chipset${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed -n '2p' | cut -c16-19} °C
+${color2}PCIe WiFi/BT${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed '1q' | cut -c16-19} °C
+${color2}NVMe SSE${color1}${alignr}${execi 5 sensors | grep 'Composite' | cut -c16-19} °C
+${color2}ISA Ambient${color1}${alignr}${execi 5 sensors | grep 'Ambient:' | cut -c20-23} °C
+${color2}ACPI Zone 1${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed -n '3p' | cut -c16-19} °C
+${color2}ACPI Zone 2${color1}${alignr}${execi 5 sensors | grep 'temp2' | sed '1q' | cut -c16-19} °C
 #
 # System Up Time #####################################################
 #
