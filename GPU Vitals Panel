@@ -1,0 +1,103 @@
+conky.config = {
+-- **********************************************************************
+-- Conky widget by Tony George (teejee2008@gmail.com)
+
+-- Webpage: http://teejeetech.blogspot.in/
+-- **********************************************************************
+
+	background = true,
+	double_buffer = true,
+
+	alignment = 'top_right',
+
+	border_width = 1,
+	cpu_avg_samples = 2,
+	default_color = 'white',
+	default_outline_color = 'white',
+	default_shade_color = 'white',
+	draw_borders = false,
+	draw_graph_borders = true,
+	draw_outline = false,
+	draw_shades = false,
+
+	gap_x = 20,
+	gap_y = 40,
+	net_avg_samples = 2,
+	no_buffers = true,
+	out_to_console = false,
+	out_to_stderr = false,
+	extra_newline = false,
+
+	own_window = true,
+	own_window_type = 'normal',
+	own_window_transparent = true,
+	own_window_colour = '000000',
+	own_window_argb_visual = true,
+	own_window_argb_value = 0,
+	own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
+
+	minimum_width = 200, minimum_height = 220,
+
+	stippled_borders = 0,
+	update_interval = 1.0,
+	uppercase = false,
+	use_spacer = 'none',
+
+	show_graph_scale = false,
+	show_graph_range = false,
+
+	use_xft = true,
+	xftalpha = 0.1,
+	font = 'Droid Sans:size=10',
+	override_utf8_locale = true,
+	color0 = 'white',
+	color1 = '#EAEAEA',
+	color2 = '#FFA300',
+	color3 = 'grey'
+};
+
+conky.text = [[### I desire a green pixel for the low value and a val of 0-3 is no display, hence the +4s you see littered below
+#
+# GPU Load @ 0-100 % #################################################
+#
+${font}${color2}GPU Load ${alignr}${color0}${nvidia gpuutil 0} %
+${alignr}${voffset -5}${color2}${nvidiagraph gpuutil 17,165 00ff00 ff0000 -t}
+${font Debian:size=7}${voffset -18}${color white}100%
+${font Debian:size=7}${voffset 2}${color white}    0%${font}${voffset -5}
+#
+# GPU Power @ 0 to 70W ###############################################
+#
+${voffset 0}${color2}GPU Power$color${alignr}${exec nvidia-smi -i 0 -q -d POWER | sed '17,$ d' | grep "Draw" | cut -c 45-49 | sed 's/ *$//' | awk '{print int($1 + 0.5)}'} W
+${voffset -5}${color2}$alignr${execgraph "nvidia-smi -i 0 -q -d POWER | sed '17,$ d' | grep "Draw" | cut -c 45-49 | sed 's/ *$//' | awk '{pwr = ($1); pwr = (pwr < 3 ? 4 : pwr * 1.429); pwr = (pwr > 100 ? 100 : pwr); print int(pwr + 0.5)}'" 17,165 00ff00 ff0000 -t }
+${font Debian:size=7}${voffset -18}${color white}≥70W
+${font Debian:size=7}${voffset 2}${color white}     0W${font}
+#
+# GPU Temp @ 60 to 90°C ##############################################
+#
+${voffset -5}${color2}GPU Temp${alignr}${color0}${nvidia temp} °C
+${voffset -5}${color2}$alignr${execgraph "nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits | awk '{temp = ($1 - 60); temp = (temp < 2 ? 4 : temp * 3.333); print (temp > 100 ? 100 : temp)}'" 17,165 00ff00 ff0000 -t }
+${font Debian:size=7}${voffset -18}${color white}≥90°C
+${font Debian:size=7}${voffset 2}${color white}≤60°C
+#
+# GPU Fan @ 70 to 100% ###############################################
+#
+${font}${color2}GPU Fan${alignr}${color0}${execi 5 nvidia-settings -q [fan:0]/GPUCurrentFanSpeed -t} %
+## ${voffset -5}${color2}$alignr${execgraph "'nvidia-settings -q [fan:0]/GPUCurrentFanSpeed -t'" 17,165 00ff00 ff0000 -t }
+${voffset -5}${color2}$alignr${execgraph "nvidia-settings -q [fan:0]/GPUCurrentFanSpeed -t | awk '{fanspd = ($1 - 70); fanspd = (fanspd < 2 ? 4 : fanspd * 3.333); print (fanspd > 100 ? 100 : fanspd)}'" 17,165 00ff00 ff0000 -t}
+${font Debian:size=7}${voffset -18}${color white}100%
+${font Debian:size=7}${voffset 2}${color white}≤70%${font}
+#
+# Other GPU ##########################################################
+#
+${color2}Throttles @${alignr}${color0}${nvidia threshold} °C${voffset 5}
+${color2}GPU Clock${alignr}${color0}${nvidia gpufreq} MHz
+${color2}GPU RAM Clock${alignr}${color0}${nvidia memfreq} MHz
+${color2}GPU RAM Load${alignr}${color0}${execi 5 nvidia-settings -q [gpu:0]/UsedDedicatedGPUMemory -t} / ${exec nvidia-settings -q [gpu:0]/TotalDedicatedGPUMemory -t} MiB
+#
+# GPU PCIe Bus Util ###########################################################
+#
+${voffset 5}${color2}GPU PCIe Utilization${font}${color1}${alignr}${nvidia pcieutil}%
+$alignr${voffset -5}${color2}${nvidiagraph pcieutil 17,165 00ff00 ff0000 -t}
+${font Debian:size=7}${voffset -18}${color white}100%
+${font Debian:size=7}${voffset 2}${color white}    0%${font}${voffset 5}
+]];

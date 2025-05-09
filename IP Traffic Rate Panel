@@ -1,0 +1,67 @@
+conky.config = {
+-- **********************************************************************
+-- "CPU Panel (8-core)" widget for Conky by Tony George (teejee2008@gmail.com)
+
+-- Webpage: http://teejeetech.blogspot.in/
+-- **********************************************************************
+
+
+	background = false,
+	double_buffer = true,
+
+	alignment = 'top_left',
+
+	border_width = 1,
+	cpu_avg_samples = 2,
+	default_color = 'white',
+	default_outline_color = 'white',
+	default_shade_color = 'white',
+	draw_borders = false,
+	draw_graph_borders = true,
+	draw_outline = false,
+	draw_shades = false,
+
+	gap_x = 20,
+	gap_y = 60,
+	net_avg_samples = 2,
+	no_buffers = true,
+	out_to_console = false,
+	out_to_stderr = false,
+	extra_newline = false,
+
+	own_window = true,
+	own_window_type = 'normal',
+	own_window_transparent = true,
+	own_window_colour = '000000',
+	own_window_argb_visual = true,
+	own_window_argb_value = 0,
+	own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
+
+	minimum_width = 10, minimum_height = 20,
+	stippled_borders = 0,
+	update_interval = 2.0,
+	uppercase = false,
+	use_spacer = 'none',
+
+	show_graph_scale = false,
+	show_graph_range = false,
+
+	use_xft = true,
+	xftalpha = 0.1,
+	font = 'Droid Sans:size=10',
+	color0 = 'white',
+	color1 = '#EAEAEA',
+	color2 = '#FFA300',
+	color3 = 'grey',
+	color4 = 'green',
+	color5 = 'red'
+
+};
+
+conky.text = [[
+${font pixelsize=14}${color2}Rx ${alignr}${color0}${downspeed wlp3s0f0}                                  
+${voffset -20}${offset 130}${color2}Tx ${alignr}${color0}${upspeed wlp3s0f0}${color2}        
+${downspeedgraph wlp3s0f0 20,120 00ff00 ff0000 70000000 -t}${offset 8}${upspeedgraph wlp3s0f0 20,120 00ff00 ff0000 1600000 -t}
+${color2}IP 				${color0}${alignr}${addr wlp3s0f0} |${execi 3600 wget -q -O /dev/stdout http://checkip.dyndns.org/ | cut -d : -f 2- | cut -d \< -f -1}      
+${font GE Inspira:pixelsize=18}${color2}Established Connections ${alignr}${color0}${tcp_portmon 1 65535 count}        ${font GE Inspira:pixelsize=16}
+]];

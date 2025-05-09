@@ -1,0 +1,124 @@
+conky.config = {
+	background = false,
+	double_buffer = true,
+
+	alignment = 'top_left',
+
+	border_width = 1,
+	cpu_avg_samples = 2,
+	default_color = 'white',
+	default_outline_color = 'white',
+	default_shade_color = 'white',
+	draw_borders = false,
+	draw_graph_borders = true,
+	draw_outline = false,
+	draw_shades = false,
+
+	--gap_x = -1905,
+	gap_x = -3275,
+	-- gap_x = 10,
+	gap_y = 10,
+	net_avg_samples = 2,
+	no_buffers = true,
+	out_to_console = false,
+	out_to_stderr = false,
+	extra_newline = false,
+
+	own_window = true,
+	own_window_type = 'normal',
+	own_window_transparent = true,
+	own_window_colour = '000000',
+	own_window_argb_visual = true,
+	own_window_argb_value = 0,
+	own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
+
+	minimum_width = 10, minimum_height = 20,
+	stippled_borders = 0,
+	update_interval = 2.0,
+	uppercase = false,
+	use_spacer = 'none',
+
+	show_graph_scale = false,
+	show_graph_range = false,
+
+	use_xft = true,
+	xftalpha = 0.1,
+	font = 'Droid Sans:size=12',
+	color0 = 'white',
+	color1 = '#EAEAEA',
+	color2 = '#FFA300',
+	color3 = 'grey',
+	color4 = 'green',
+	color5 = 'red',
+	color6 = '#FFFF50',
+	color7 = '#BBBBBB',
+	color8 = '#888888'
+
+--  # optional parameters:
+--  # default	details
+--	#	0			1) debug enable - Optional int to 0=disabled (default) any other value to enable
+--	#	0			2) mark_period - Optional int seconds to self emit in the monitored log - 0 to disable, default is 0
+--	#	4			3) log_sever_no - Optional int for log severity number (defaults to 4 [warning] and 'higher' severity)
+--	#	60			4) max_entry_count - Optional int for qty of log entries (defaults to 60)
+--	#	220			5) max_entry_width - Optional int Max char width to trim each line to (default of 220)
+--	#	""			6) keyword_filter - Optional keyword to filter logs (negate to reject, non-negated to invert rejection)
+--	#	""			7) hilt_cyan_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
+--	#	""			8) hilt_green_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
+--	#	""			9) hilt_yellow_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
+--	#	""			10) hilt_red_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
+--	#	30			11) recent_period - Optional int period in Seconds for 'Fresh' decorations to be applied = 
+--	#	120			12) aging_period - Optional int period in Seconds for 'Aging' decorations to be applied
+--	#	3600		13) temporal fetch - Optional int period in Seconds for pulling in pre-filtered journal and syslog etries
+
+--  to test use:
+				
+--		logger -p user.alert "================================="; sleep 1.0 
+--		logger -p user.emerg "This is a test emerg message"; sleep 1.0
+--		logger -p user.alert "This is a test alert message"; sleep 1.0
+--		logger -p user.crit "This is a test crit message"; sleep 1.0
+--		logger -p user.error "This is a test err message"; sleep 1.0
+--		logger -p user.warning "This is a test warning message"; sleep 1.0
+--		logger -p user.notice "This is a test notice message"; sleep 1.0
+--		logger -p user.info "This is a test info message"; sleep 1.0
+--		logger -p user.debug "This is a test debug message"; sleep 1.0
+
+--  after a kill, run this (can ctl-c and it'll stay running): 
+--  note: but will still echo from conky, if terminal window remains in play
+
+--		cd "$HOME/.conky/Mutable Focus Systems"; conky -c "$HOME/.conky/Mutable Focus Systems/Syslog Journal Panel" &
+
+--	for reference:
+
+--      0 emerg|panic
+--      1 alert
+--      2 crit
+--      3 err|error
+--      4 warn|warning
+--      5 notice
+--      6 info
+--      7 debug
+
+-- in the logs.sh script, I implemented an 'Include then Exclude' context for log filtering See:
+-- https://g.co/gemini/share/5292d2a5062a for initial implementation and alternate implementation concepts
+
+};
+
+conky.text = [[#
+# Would like to nice this if possible - need to look at the cpu script and address this accordingly with a sudo
+#
+# ${execp nice -n -10 ~/.conky/scripts/logs.sh 0 300 7 60 208 "-gnome,-sudo" "todwulff,conky" "debug,info" "notice,warning,warn" "error,err,crit,alert,emerg,panic" 120 300 600}
+#
+# No Debug,
+# 5 min (300s) MARK interval,
+# monitoring debug(7) and higher,
+# with a log count of 60 lines to be presented,
+# truncated @ 208 chars wide,
+# suppressing gnome & sudo log entries,	<-- this imlementation is a Include first then Exclude on the included subset
+# highlighting those terms provided in cyan, green, yellow, red,
+# log entries newer than 120s highlighted as FRESH,
+# log entries newer than 300s highlighted as AGING,
+# log entries older than 300s highlighted as AGED, and
+# log entries newer than 600s are retreived and processed (some processes are pretty chatty) and can cause starvation when filtereddprintf("",)
+#
+${execp ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 600 7 60 152 "-gnome,-sudo" "todwulff,conky" "debug,info" "notice,warning" "err,crit,alert,emerg,panic" 120 300 600}
+]];

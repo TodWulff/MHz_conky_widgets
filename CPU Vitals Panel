@@ -1,0 +1,225 @@
+conky.config = {
+-- **********************************************************************
+-- Conky widget by Tony George (teejee2008@gmail.com)
+
+-- Webpage: http://teejeetech.blogspot.in/
+-- **********************************************************************
+
+	background = true,
+	double_buffer = true,
+
+	alignment = 'top_right',
+
+	border_width = 1,
+	cpu_avg_samples = 2,
+	default_color = 'white',
+	default_outline_color = 'white',
+	default_shade_color = 'white',
+	draw_borders = false,
+	draw_graph_borders = true,
+	draw_outline = false,
+	draw_shades = false,
+
+	gap_x = 240,
+	gap_y = 40,
+	net_avg_samples = 2,
+	no_buffers = true,
+	out_to_console = false,
+	out_to_stderr = false,
+	extra_newline = false,
+
+	own_window = true,
+	own_window_type = 'normal',
+	own_window_transparent = true,
+	own_window_colour = '000000',
+	own_window_argb_visual = true,
+	own_window_argb_value = 0,
+	own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
+
+	minimum_width = 200, minimum_height = 220,
+
+	stippled_borders = 0,
+	update_interval = 1.0,
+	uppercase = false,
+	use_spacer = 'none',
+
+	show_graph_scale = false,
+	show_graph_range = false,
+
+	use_xft = true,
+	xftalpha = 0.1,
+	font = 'Droid Sans:size=10',
+	override_utf8_locale = true,
+	color0 = 'white',
+	color1 = '#EAEAEA',
+	color2 = '#FFA300',
+	color3 = 'grey'
+
+};
+
+conky.text = [[
+#
+# CPU Load ###########################################################
+#
+${font}${color2}CPU Load${color0}${alignr}${cpu cpu0}%
+${voffset -5}${alignr}${color2}${cpugraph cpu0 17,165 00ff00 ff0000 -t}
+${font Debian:size=7}${voffset -18}${color white}100%
+${font Debian:size=7}${voffset 2}${color white}    0%${font}${voffset -5}
+#
+# CPU Power 0 to 79W #################################################
+#
+${voffset 0}${color2}CPU Power${font}${alignr}${color1}${execpi 1 ~/.conky/MHz_conky_widgets/conky_scripts/calc_cpu_power.sh | awk '{print $1}'} W${voffset -5}
+${color2}${alignr}${execigraph 1 "~/.conky/MHz_conky_widgets/conky_scripts/report_cpu_power.sh | awk '{print $2}'" 17,165 00ff00 ff0000 -t}
+${font Debian:size=7}${voffset -18}${color white}≥79W
+${font Debian:size=7}${voffset 2}${color white}     0W
+#
+# CPU Temp @ 60 to 100°C ##############################################
+#
+${voffset 0}${font}${color2}CPU Temp ${alignr}${color1}${execi 1 sensors | grep 'Package id 0' | awk '{print $4}' | cut -c2-3} °C
+${voffset -5}${color2}$alignr${execigraph 1 "sensors | grep 'Package id 0' | awk '{print $4}' | cut -c2-3 | awk '{temp = ($1 - 60); temp = (temp < 0 ? 4 : temp * 5); print (temp > 100 ? 100 : temp)}'" 17,165 00ff00 ff0000 -t }
+${font Debian:size=7}${voffset -18}${color white}≥80°C
+${font Debian:size=7}${voffset 2}${color white}≤60°C
+#
+# CPU AIO Pump & Fan ########################################################
+#
+${font}${voffset 0}${color2}CPU AIO Pump${color0}${alignr}${execi 5 sensors | grep 'Processor Fan' | cut -c18-21 | awk '{fanspd = $1; max_rpm = 3200; fanspd = int(((fanspd - 0) / max_rpm) * 100 + 0.5); print (fanspd > 100 ? 100 : fanspd)}'} %
+${voffset -5}${color2}$alignr${execigraph 5 "sensors | grep 'Processor Fan' | cut -c18-21 | awk '{max_rpm = 3200; print int((($1 - 1500) / max_rpm) * 100 + 0.5)}' | awk '{print ($1 > 100 ? 100 : $1)}' | awk '{print ($1 < 4 ? 4 : $1)}'" 17,165 00ff00 ff0000 -t}
+${font Debian:size=7}${voffset -18}${color white}100%
+${font Debian:size=7}${voffset 2}${color white}≤50%${font}${voffset -5}
+#
+# Proc Fan RPM #######################################################
+#
+${color2}CPU AIO Pump${color0}${alignr}${execi 5 sensors | grep 'Processor Fan' | cut -c18-21} RPM
+##
+# Case Fan RPM #######################################################
+#
+${color2}Case Fan${color0}${alignr}${execi 5 sensors | grep 'Motherboard Fan' | cut -c18-21} RPM
+#
+# Various Temps ######################################################
+#
+${voffset 2}${color2}ISA CPU Temp${color1}${alignr}${execi 5 sensors | grep 'CPU:' | cut -c18-23} °C
+${color2}SkyLake Chipset${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed -n '2p' | cut -c14-19} °C
+${color2}PCIe WiFi/BT${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed '1q' | cut -c14-19} °C
+${color2}NVMe SSE${color1}${alignr}${execi 5 sensors | grep 'Composite' | cut -c14-19} °C
+${color2}ISA Ambient${color1}${alignr}${execi 5 sensors | grep 'Ambient:' | cut -c18-23} °C
+${color2}ACPI Zone 1${color1}${alignr}${execi 5 sensors | grep 'temp1' | sed -n '3p' | cut -c14-19} °C
+${color2}ACPI Zone 2${color1}${alignr}${execi 5 sensors | grep 'temp2' | sed '1q' | cut -c14-19} °C
+#
+# System Up Time #####################################################
+#
+${voffset 2}${color2}System Up Time${color1}${alignr}${uptime}
+#
+# XXX ################################################################
+#
+#
+# XXX ################################################################
+#
+]];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
