@@ -44,15 +44,28 @@ conky.config = {
 	use_xft = true,
 	xftalpha = 0.1,
 	font = 'Droid Sans:size=12',
-	color0 = 'white',
-	color1 = '#EAEAEA',
-	color2 = '#FFA300',
-	color3 = 'grey',
-	color4 = 'green',
-	color5 = 'red',
-	color6 = '#FFFF50',
-	color7 = '#BBBBBB',
-	color8 = '#888888'
+	color0 = '#FFFFFF',
+	color1 = '#BBBBBB',
+	color2 = '#777777',
+	color3 = '#E196FF',
+	color4 = '#00FFFF',
+	color5 = '#00FF00',
+	color6 = '#FFEA00',
+	color7 = '#FF3333',
+	color8 = '#FFA300',
+	color9 = '#FF00CD',
+	
+--	
+--	
+--	
+--	
+--	
+--	
+--	
+--	
+--	
+	
+	
 
 --  # optional parameters:
 --  # default	details
@@ -82,10 +95,11 @@ conky.config = {
 --		logger -p user.info "This is a test info message"; sleep 1.0
 --		logger -p user.debug "This is a test debug message"; sleep 1.0
 
---  after a kill, run this (can ctl-c and it'll stay running): 
+--  after a kill, run this (can ctl-c and it'll stay running):
 --  note: but will still echo from conky, if terminal window remains in play
 
---		cd "$HOME/.conky/Mutable Focus Systems"; conky -c "$HOME/.conky/Mutable Focus Systems/Syslog Journal Panel" &
+--		cd "$HOME/.conky/MHz_conky_widgets"; conky -c "$HOME/.conky/MHz_conky_widgets/Syslog Panel" &
+
 
 --	for reference:
 
@@ -108,17 +122,17 @@ conky.text = [[#
 #
 # ${execp nice -n -10 ~/.conky/scripts/logs.sh 0 300 7 60 208 "-gnome,-sudo" "todwulff,conky" "debug,info" "notice,warning,warn" "error,err,crit,alert,emerg,panic" 120 300 600}
 #
-# No Debug,
+# No Debug (0),
 # 5 min (300s) MARK interval,
 # monitoring debug(7) and higher,
 # with a log count of 60 lines to be presented,
 # truncated @ 208 chars wide,
-# suppressing gnome & sudo log entries,	<-- this imlementation is a Include first then Exclude on the included subset
+# suppressing gnome & sudo log entries,	<-- this imlementation is a Include first then an Exclude on the Included subset
 # highlighting those terms provided in cyan, green, yellow, red,
 # log entries newer than 120s highlighted as FRESH,
-# log entries newer than 300s highlighted as AGING,
+# log entries between 120s & 300s highlighted as AGING,
 # log entries older than 300s highlighted as AGED, and
-# log entries newer than 600s are retreived and processed (some processes are pretty chatty) and can cause starvation when filtereddprintf("",)
+# log entries newer than 600s are retreived and processed (some processes are pretty chatty) and can cause starvation when filtered
 #
-${execp ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 600 7 60 152 "-gnome,-sudo" "todwulff,conky" "debug,info" "notice,warning" "err,crit,alert,emerg,panic" 120 300 600}
+${execp ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 600 7 60 152 "-sudo,-gnome" "Conky" "debug,info" "notice,warning" "err,crit,alert,emerg,panic" 120 300 600}
 ]];

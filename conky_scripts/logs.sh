@@ -40,14 +40,19 @@
 #
 #	✓ Implemented a auto-MARK feature for this tool - the 2nd parameter is the mark period
 #	✓ Implemented log_debug()
-#	✓ Implemented a logger MARK for use when the script is running to emit a MARK every x seconds (x is parameterized in conf)
-#	✓ Emelemented filter keyword lists vs. a single term
+#	✓ Implemented filter keyword lists vs. a single term
+#
+#.........................................................................................
+# 5130_1930		 TAW	10May25	feature additions - Released:  via github
+#
+#	✓ Alter color naming scheme, reinstated severity in widget display, spewed a bit about why/what in the readme.
+#		This help to reduce conky buffer overruns especially with longer log entry lines.  Required config
+#		of color codes in the widgets config file as well as the shell script.
 #
 #.........................................................................................
 
 #.........................................................................................
 # To Dos:
-#	- employ use of color_ vs. hex codes (saves buffer)
 #	- consider a change of presented date/time format, adding ms?
 #	- consider supporting passing severity names vs. (magic) numbers?
 #	- figure out how to do an inverted filter list - to reject display of items
@@ -100,24 +105,31 @@ mark_period=0
 syslog_format="short-unix"
 
 recent_period=60
-recent_color="FFFFFF"
 aging_period=120
-aging_color="BBBBBB"
-aged_color="777777"
-
 rate_limit_period=1000	# mS
 
-# used to highlinge the whole line of a debug message, and the spinner
-debug_color="FFFFFF"
+# color defs for reading ease - color hex codes are defined in the vars section of the widget
+# taking this approach to minimize the text length of the decorations to help minimize buffer
+col_white="color0"
+col_ltgray="color1"
+col_dkgray="color2"
+col_purple="color3"
+col_cyan="color4"
+col_green="color5"
+col_yellow="color6"
+col_red="color7"
+col_orange="color8"
+col_magenta="color9"
 
-# Purple for Filtered keyword highlights and first line decoration
-keyword_color="E196FF"
-header_decor="\${font DejaVu Sans Mono:size=9}\${color 00FFFF}"
+recent_color="$col_white"
+aging_color="$col_ltgray"
+aged_color="$col_dkgray"
+debug_color="$col_white"
+keyword_color="$col_purple"
+trim_ind_color="$col_magenta"
+highlight_colors=("$col_cyan" "$col_green" "$col_yellow" "$col_red")
 
-trim_ind_color="FF00CD"
-
-#highlight_colors=("00FFFF" "83F18D" "FCF151" "FF659F") # Cyan, Green, Yellow, Red
-highlight_colors=("00FFFF" "00FF00" "FFEA00" "FF3333") # Cyan, Green, Yellow, Red
+header_decor="\${font DejaVu Sans Mono:size=9}\${$col_cyan}"
 
 severity_levels=("EMERGENCY" "ALERT" "CRITICAL" "ERROR" "WARNING" "NOTICE" "INFO" "DEBUG")	# for visual purposes
 severity_names=("emerg" "alert" "crit" "err" "warning" "notice" "info" "debug")				# for programmatic purposes
@@ -385,11 +397,12 @@ fetch_syslog() {
         fi
 
         source_machine=$(awk '{print $4}' <<< "$line")
+        log_sev_level=$(awk '{print $5}' <<< "$line")
         formatted_time=$(date -d "@$log_epoch" +"%Y-%m-%d %H:%M:%S")
         log_message=$(cut -d' ' -f6- <<< "$line")
 
         # Format the output line
-		output_line="$log_epoch|SYSLOG|$formatted_time|$source_machine|$log_message"
+		output_line="$log_epoch|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
         reformat_output+="$output_line\n"
     done <<< "$pruned_output"
 
@@ -433,7 +446,7 @@ temporal_color() {
 
 set_hilt_color() {
     local idx="$1"
-    echo "${highlight_colors[$idx]:-00FFFF}"
+    echo "${highlight_colors[$idx]:-$col_cyan}"
 }
 
 calculate_time_difference_ns() {
@@ -543,6 +556,8 @@ for keyword in "${keyword_list[@]}"; do
     fi
 done
 
+##################################################################################################
+
 # Build include and exclude regexe constructs to be used in filtering syslog
 include_regex=""
 exclude_regex=""
@@ -555,32 +570,36 @@ if [[ ${#exclude_filters[@]} -gt 0 ]]; then
     exclude_regex=$(IFS='|'; echo "${exclude_filters[*]}")
 fi
 
+##################################################################################################
+
 # Build filter display string for use in header row
 filter_display=""
 
 if [[ ${#include_filters[@]} -gt 0 ]]; then
     IFS=', '
-    filter_display+="\${color 00FFFF}Include: \${color $keyword_color}${include_filters[*]} "
+    filter_display+="\${$col_cyan}Include: \${$col_purple}${include_filters[*]} "
     unset IFS
 fi
 
 if [[ ${#exclude_filters[@]} -gt 0 ]]; then
     IFS=', '
-    filter_display+="\${color 00FFFF}Exclude: \${color $keyword_color}${exclude_filters[*]} "
+    filter_display+="\${$col_cyan}Exclude: \${$col_purple}${exclude_filters[*]} "
     unset IFS
 fi
 
 # Trim trailing space on filter_display (part of header line and wrapped in parens so cleanliness is godliness)
 filter_display=$(echo "$filter_display" | sed 's/ *$//')
 
+##################################################################################################
+
 # --- Build Output Header ---
 severity_string=$(select_severity "$log_sever_no")
 cache_source="SYSLOG"
 display_header=""
 
-display_header+="\${color $keyword_color}$cache_source\${color2} "
-display_header+="entries ≥ \${color $keyword_color}$severity_string \${color2}(\${color $recent_color}Recent, \${color $aging_color}Aging, \${color $aged_color}Aged\${color2})"
-[[ -n "$filter_display" ]] && display_header+=" [\${color $keyword_color}$filter_display\${color2}]"
+display_header+="\${$col_purple}$cache_source\${$col_orange} "
+display_header+="entries ≥ \${$col_purple}$severity_string \${$col_orange}(\${$col_white}Recent, \${$col_ltgray}Aging, \${$col_dkgray}Aged\${$col_orange})"
+[[ -n "$filter_display" ]] && display_header+=" [\${$col_purple}$filter_display\${$col_orange}]"
 
 display_header+=":\n"
 
@@ -603,12 +622,14 @@ if [[ -f "$last_run_file" ]]; then
 			exit 0
         else
             # No previous content? Emit a simple fallback
-            echo "\${color FF0000}Loading..."
+            echo "\${$col_cyan}Loading..."
 			log_end
             exit 0
         fi
 	fi
 fi
+
+##################################################################################################
 
 # --- emit '-- MARK --' to syslog, at the current severity, at the parameterized interval
 if [[ ${mark_period} -ne 0 ]]; then
@@ -625,10 +646,10 @@ if [[ ${mark_period} -ne 0 ]]; then
 	fi
 fi
 
+##################################################################################################
+
 # Otherwise, proceed with normal fresh fetch, recording start time in file
 echo "$current_time_ms" > "$last_run_file"
-
-##################################################################################################
 
 # Calculate how many logs to pull initially
 fetch_multiplier=1
@@ -648,7 +669,7 @@ all_logs=$(read_logs | sort -n -t'|' -k1 | tail -n "$max_entry_count")
 # Handle no logs case
 if [[ -z "$all_logs" ]]; then
 	echo -e "$header_decor$spinner $cache_content\n"
-    echo "\${color $aged_color}No logs available matching criteria"
+    echo "\${$col_dkgray}No logs available matching criteria"
 	log_debug "No matching criteria."
 	log_end
     exit 0
@@ -658,30 +679,34 @@ log_debug "filter_display: $filter_display"  # placed here after log ingestion t
 
 cache_content=""
 
+##################################################################################################
+
 # --- Build Output Content ---
 # loop through logs and build the balance of the display content.
 
 while IFS='|' read -r epoch source formatted_time source_machine log_message; do
     time_diff=$((current_time - epoch))
-    color=$(temporal_color "$time_diff" "$log_message")
+    tenure_color=$(temporal_color "$time_diff" "$log_message")
     
     # Trim and mark with tooltip if needed
     if [[ ${#log_message} -gt $max_entry_width ]]; then
         trimmed_message="${log_message:0:max_entry_width}"
-        formatted_line="${trimmed_message}\${color $trim_ind_color}█\${color $color}"
+        formatted_line="${trimmed_message}\${$col_magenta}█\${$tenure_color}"
     else
         formatted_line="$log_message"
     fi
 
     # Highlight keyword inside log message if filtering is active
     if [[ -n "$keyword_filter" ]]; then
-        formatted_line=$(sed "s/\($keyword_filter\)/\${color $keyword_color}\1\${color $color}/Ig" <<< "$formatted_line")
+	
+        #formatted_line=$(sed "s/\($keyword_filter\)/\${color3}\1\${$tenure_color}/Ig" <<< "$formatted_line")
+        formatted_line=$(sed "s/\($keyword_filter\)/\${$col_purple}\1\${$tenure_color}/Ig" <<< "$formatted_line")
     fi
 	
 	# Apply all highlight groups
 	for idx in "${!highlight_groups[@]}"; do
 		group_name="${highlight_groups[$idx]}"
-		decor_color=$(set_hilt_color "$idx")
+		decor_color=$(set_hilt_color "$idx")   ############
 
 		# <<< Correct way to pull real array values:
 		eval "terms=(\"\${${group_name}[@]}\")"
@@ -689,14 +714,16 @@ while IFS='|' read -r epoch source formatted_time source_machine log_message; do
 		if [[ ${#terms[@]} -gt 0 ]]; then
 			for term in "${terms[@]}"; do
 				if [[ -n "$term" ]]; then
-					formatted_line=$(sed "s/\($term\)/\${color $decor_color}\1\${color $color}/Ig" <<< "$formatted_line")
+					formatted_line=$(sed "s/\($term\)/\${$decor_color}\1\${$tenure_color}/Ig" <<< "$formatted_line")
 				fi
 			done
 		fi
 	done
 
-    cache_content+="\${color $color}${formatted_time} ${source_machine} ${formatted_line}\n"
+    cache_content+="\${$tenure_color}${formatted_time} ${source_machine} ${formatted_line}\n"
 done <<< "$all_logs"
+
+##################################################################################################
 
 # Sort cache_content if needed
 sorted_logs=$(sort <<< "$cache_content")
