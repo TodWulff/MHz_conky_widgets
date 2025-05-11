@@ -45,19 +45,51 @@
 #.........................................................................................
 # 5130_1930		 TAW	10May25	feature additions - Released:  via github
 #
-#	✓ Alter color naming scheme, reinstated severity in widget display, spewed a bit about why/what in the readme.
-#		This help to reduce conky buffer overruns especially with longer log entry lines.  Requires config
-#		of color codes in the widgets config file as well as the shell script.
+#	✓ Alter color naming scheme, reinstated severity in widget display, spewed a bit about
+#		why/what in the readme.  This help to reduce conky buffer overruns especially with
+#		longer log entry lines.  Requires config of color codes in the widgets config file 
+#		as well as the shell script.
 #
 #.........................................................................................
-# 5131_0400		 TAW	11May25	feature additions - Released:  via github
+# 5131_1700		 TAW	11May25	feature additions - Released:  via github
 #
 #	✓ make default value changes, added and went all OCD on test message script <roll eyes>
+#	✓ initially added an attn (bell) to the log_debug proc and then went all rube goldbert
+#		and decided to address all permutations of potential scenarios:
+#		
+#		attention - helper proc to emit a bell to somewhere - it works.  lol
+#		debug_attn - this is a helper proc too - wrapped the above with debug mode test
+#		
+#		So I did a matrix up of all possible reasonable uses of log, echo, when in debug or
+#		not, and if a bell is desired or not:
+#		
+#		# case 1 - echo (built into bash interpreter)
+#		# case 2 - log			Expects severity number as the first argument
+#		# case 3 - echo_log		Expects severity number as the first argument
+#		# case 4 - echo_attn
+#		# case 5 - log_attn		Expects severity number as the first argument
+#		# case 6 - echo_log_attn	Expects severity number as the first argument
+#		# case 7 - dbg_echo						
+#		# case 8 - dbg_log		Expects severity number as the first argument
+#		# case 9 - dbg_echo_log		Expects severity number as the first argument
+#		# case 10 - dbg_echo_attn
+#		# case 11 - dbg_log_attn	Expects severity number as the first argument
+#		# case 12 - dbg_echo_log_attn	Expects severity number as the first argument
+#		
+#		mark_sever="6"		# severity used for the periodic -- MARK -- logs,
+#		if so enabled in the parameters (6=info - followed rsyslogd's lead here)
+#		
+#		debug_sever="7"		# this is the severity used for debug logging in ... debug.!.
+#		
+#		tgt_log_sev_no="6"	# <- ultimately passed as a parameter - but setting early
+#
+#		error_sever="3"		# this is the severity used for logging of script errors
 #
 #.........................................................................................
 #
 #.........................................................................................
 # To Dos:
+#	- implement aural warnings on a threshold level (i.e. alert, critical, emerg/panic)
 #	- consider a change of presented date/time format, adding ms?
 #	- consider supporting passing severity names vs. (magic) numbers?
 #	- figure out how to do an inverted filter list - to reject display of items
@@ -86,7 +118,7 @@
 
 # optional		1) debug enable - Optional integer to 0=disabled (default) any other value to enable
 # parameters:	2) Optional int seconds to self emit in the monitored log - 0 to disable, default is 10 min (600 secs)
-#				3) log_sever_no - Optional log severity number (defaults to 4 [warning] and 'higher' severity)
+#				3) tgt_log_sev_no - Optional log severity number (defaults to 4 [warning] and 'higher' severity)
 #				4) max_entry_count - Optional Number of log entries (defaults to 60)
 #				5) max_entry_width - Optional Max char width to trim each line to (default of 152)
 #				6) keyword_filter - Optional keyword to filter logs
@@ -102,17 +134,24 @@
 
 # --- Configuration ---
 enable_debug="1"		# <- ultimately passed as a parameter, but may want one emission at app start.?.
-log_sever_no="7"		# <- ultimately passed as a parameter, but set to info in case emissions are desired at start
 debug_app="Conky"
 debug_trigger="$debug_app"
 debug_proc="logs.sh"
 mark_period=0
+
+tgt_log_sev_no="7"	# <- ultimately passed as a parameter, but setting early, in case it's needed
+
+mark_sever="6"		# severity used for the periodic -- MARK -- logs, if so enabled in the parameters
+debug_sever="7"		# this is the severity used for debug logging
+error_sever="3"		# this is the severity used for sript error logs
 
 syslog_format="short-unix"
 
 recent_period=60
 aging_period=120
 rate_limit_period=1000	# mS
+
+blah=0
 
 # color defs for reading ease - COLOR HEX CODES ARE DEFINED IN THE VARS SECTION OF THE WIDGET
 # taking this approach to minimize the text length of the decorations to help minimize buffer overruns
@@ -169,24 +208,98 @@ log_fetchers=(
 
 # --- Functions ---
 
-get_dbg_log_name() {
-    local idx="$1"
-    echo "${severity_names[$idx]:-debug}"
+attention() {
+	printf "\a" >&2
 }
 
-log_debug() {
-	debug_log_tgt=$(get_dbg_log_name "$log_sever_no")
-    local message="$*"
+dbg_attn() {
     if [[ "$enable_debug" != "0" ]]; then
-		logger -s -p user."$debug_log_tgt" -t "$debug_app.$debug_proc" -- "$message"
+		attention
+	fi
+}
+
+log() {	
+	local sever_no="$1"
+	shift
+	local message=("$@")
+	local log_tgt=$(get_log_name "$sever_no")
+	logger -s -p user."$log_tgt" -t "$debug_app.$debug_proc" -- "$message"
+}
+
+echo_log() { 
+	local log_tgt="$1"
+	shift
+	log "$log_tgt" "$@"
+	echo "$@"
+}
+
+echo_attn() { 
+	echo "$@"
+	attention
+}
+
+log_attn() {
+	local tgt="$1"
+	shift
+	log "$tgt" "$@"
+	attention
+}
+
+echo_log_attn() {
+	local tgt="$1"
+	shift
+	echo "$@"
+	log_attn "$tgt" "$@"
+}
+
+dbg_echo() {
+    if [[ "$enable_debug" != "0" ]]; then
+		echo "$@"
+	fi
+}
+								
+dbg_log() {
+    if [[ "$enable_debug" != "0" ]]; then
+		local log_tgt="$1"
+		shift
+		log "$log_tgt" "$@"
     fi
 }
 
-echo_debug() {
-    local message="$*"
+dbg_echo_log() {
     if [[ "$enable_debug" != "0" ]]; then
-		echo -e "$message" >&2
+		local log_tgt="$1"
+		shift
+		echo_log "$log_tgt" "$@"
 	fi
+}
+
+dbg_echo_attn() {
+	dbg_echo "$@"
+    dbg_attn
+}
+
+dbg_log_attn() {
+	local log_tgt="$1"
+	shift
+    dbg_log "$log_tgt" "$@"
+    dbg_attn
+}
+
+dbg_echo_log_attn() {
+	local log_tgt="$1"
+	shift
+	dbg_echo_log "$log_tgt" "$@"
+    dbg_attn
+}
+
+get_log_name() {
+    local idx="$1"
+    if [[ ! "$idx" =~ ^[0-7]$ ]]; then
+        echo_log_attn "$error_sever" "Error: target syslog must be an integer between 0 and 7 - got: >$idx<"
+        return 1
+    fi
+    echo "${severity_names[$idx]:-debug}"
 }
 
 get_next_spinner() {
@@ -220,23 +333,23 @@ fetch_syslog() {
 
     # Validate inputs
     if [[ ! "$temporal_seconds" =~ ^[0-9]+$ ]]; then
-        echo "Error: temporal_seconds must be a positive integer" >&2
+        echo_log_attn "$error_sever" "Error: temporal_seconds must be a positive integer"
         return 1
     fi
 	
-    if [[ ! "$log_sever_no" =~ ^[0-7]$ ]]; then
-        echo "Error: log_sever_no must be an integer between 0 and 7" >&2
+    if [[ ! "$tgt_log_sev_no" =~ ^[0-7]$ ]]; then
+        echo_log_attn "$error_sever" "Error: tgt_log_sev_no must be an integer between 0 and 7"
         return 1
     fi
 	
     if [[ ! "$fetch_entry_count" =~ ^[0-9]+$ ]]; then
-        echo "Error: fetch_entry_count must be a positive integer" >&2
+        echo_log_attn "$error_sever" "Error: fetch_entry_count must be a positive integer"
         return 1
     fi
 
     # Severity keywords for filtering (mapping syslog severity levels)
     local severities
-    case "$log_sever_no" in
+    case "$tgt_log_sev_no" in
         0) severities="emerg" ;;
         1) severities="alert" ;;
         2) severities="crit" ;;
@@ -247,7 +360,7 @@ fetch_syslog() {
         7) severities="debug" ;;
     esac
 
-    log_debug "Fetching up to $fetch_entry_count entries since '$temporal_seconds seconds ago' with severity $log_sever_no"
+    dbg_log "$debug_sever" "Fetching up to $fetch_entry_count entries since '$temporal_seconds seconds ago' with severity $tgt_log_sev_no"
 
 	##################################################################################################
 
@@ -255,7 +368,7 @@ fetch_syslog() {
     local sev_str="$severities"
 	local since_str=$(date --date="$temporal_seconds seconds ago" "+%b %d %H:%M:%S")
 	
-	log_debug "Since: $since_str  Sev: $sev_str"
+	dbg_log "$debug_sever" "Since: $since_str  Sev: $sev_str"
 	
     local temporal_fetch
 
@@ -297,13 +410,13 @@ fetch_syslog() {
 
 	# test for last command error
     if [[ $? -ne 0 ]]; then
-        log_debug "Error: syslog temporal_fetch command failed for since_str: '$since_str'"
+        echo_log_attn "$error_sever" "Error: syslog temporal_fetch command failed for since_str: '$since_str'"
         return 1
     fi
 	
     # Check if syslog is empty
     if [[ -z "$temporal_fetch" ]]; then
-		log_debug "No syslog entries found since '$since_str'"
+		dbg_log "$debug_sever" "No syslog entries found since '$since_str'"
 		return 0
     fi
 	
@@ -314,7 +427,7 @@ fetch_syslog() {
 
     # log line count of temporal temporal_fetch
     local temporal_line_count=$(echo -e "$temporal_fetch" | wc -l | awk '{print $1}')	
-    log_debug "temporal_fetch: $temporal_line_count entries from syslog for processing"
+    dbg_log "$debug_sever" "temporal_fetch: $temporal_line_count entries from syslog for processing"
 
 	##################################################################################################
 
@@ -322,10 +435,10 @@ fetch_syslog() {
     local include_results
     if [[ -n "$include_regex" ]]; then
         include_results=$(echo "$temporal_fetch" | grep -aEi -- "$include_regex" || true)
-		log_debug "+) include_regex: >$include_regex<"
+		dbg_log "$debug_sever" "+) include_regex: >$include_regex<"
     else
         include_results="$temporal_fetch"
-        log_debug "+) No include_regex"
+        dbg_log "$debug_sever" "+) No include_regex"
     fi
 
 	#save the temporal+include syslog
@@ -334,7 +447,7 @@ fetch_syslog() {
 	fi
 	
     local include_line_count=$(echo -e "$include_results" | wc -l | awk '{print $1}')
-	log_debug "include_regex: $include_line_count line(s) after include_regex"
+	dbg_log "$debug_sever" "include_regex: $include_line_count line(s) after include_regex"
 
 	##################################################################################################
 
@@ -342,10 +455,10 @@ fetch_syslog() {
     local exclude_results
     if [[ -n "$exclude_regex" ]]; then
         exclude_results=$(echo "$include_results" | grep -aEiv -- "$exclude_regex" || true)
-		log_debug "-) exclude_regex: >$exclude_regex<"
+		dbg_log "$debug_sever" "-) exclude_regex: >$exclude_regex<"
     else
         exclude_results="$include_results"
-        log_debug "-) No exclude_regex"
+        dbg_log "$debug_sever" "-) No exclude_regex"
    fi
 	
 	#save the temporal+include+exclude syslog
@@ -354,7 +467,7 @@ fetch_syslog() {
 	fi
 	
     local exclude_line_count=$(echo -e "$exclude_results" | wc -l | awk '{print $1}')
-	log_debug "exclude_regex: $exclude_line_count line(s) after exclude_regex"
+	dbg_log "$debug_sever" "exclude_regex: $exclude_line_count line(s) after exclude_regex"
 
 	##################################################################################################
 
@@ -367,7 +480,7 @@ fetch_syslog() {
 	fi
 	
     local pruned_line_count=$(echo -e "$pruned_output" | wc -l | awk '{print $1}')
-	log_debug "prune: $pruned_line_count line(s) after pruning"
+	dbg_log "$debug_sever" "prune: $pruned_line_count line(s) after pruning"
 
 	##################################################################################################
 
@@ -387,7 +500,7 @@ fetch_syslog() {
         log_epoch=$(date -d "$log_time" +%s 2>/dev/null)
 
         if [[ -z "$log_epoch" ]]; then
-            log_debug "Skipping line with invalid log_time: $log_time"
+            dbg_log "$debug_sever" "Skipping line with invalid log_time: $log_time"
             continue
         fi
 
@@ -407,13 +520,12 @@ fetch_syslog() {
 	fi
 	
     format_line_count=$(echo -e "$format_output" | wc -l | awk '{print $1}')
-	log_debug "format: $format_line_count line(s) after formatting"
+	dbg_log "$debug_sever" "format: $format_line_count line(s) after formatting"
 
 	##################################################################################################
 
     # Output the filtered and limited results
     echo -e "$format_output"
-    #log_debug "SYSLOG: provided $format_line_count log entries"
 }
 
 read_logs() {
@@ -422,6 +534,7 @@ read_logs() {
 
 select_severity() {
     local idx="$1"
+	dbg_log "$debug_sever"  "select_severity: lookup: $idx  Result: ${severity_levels[$idx]:-DEBUG}"
     echo "${severity_levels[$idx]:-DEBUG}"
 }
 
@@ -449,7 +562,7 @@ calculate_time_difference_ns() {
 
   # Validate input
   if ! [[ "$start_ns" =~ ^[0-9]+$ ]] || ! [[ "$end_ns" =~ ^[0-9]+$ ]]; then
-    echo "Error: Invalid time format. Please provide nanosecond values (integers)."
+    echo_log_attn "$error_sever" "Error: Invalid time format. Please provide nanosecond values (integers)."
     return 1
   fi
 
@@ -484,17 +597,17 @@ calculate_time_difference_ns() {
   echo "${scaled_difference} ${unit}"
 }
 
-log_start() {
+script_start() {
 	start_nanotime=$(date +%s%N)
-#	log_debug "---------------------------------------------------"
-#	log_debug "Startng"
+#	dbg_log "$debug_sever" "---------------------------------------------------"
+#	dbg_log "$debug_sever" "Startng"
 }
 
-log_end() {
+script_complete() {
 	end_nanotime=$(date +%s%N)
 	dur_nanotime=$(calculate_time_difference_ns "$start_nanotime" "$end_nanotime")
-	log_debug "Finished - Took: $dur_nanotime"
-	log_debug "==================================================="
+	dbg_log "$debug_sever" "Finished - Took: $dur_nanotime"
+	dbg_log "$debug_sever" "==================================================="
 }
 
 ##################################################################################################
@@ -504,18 +617,18 @@ current_time_ms=$(date +%s%3N)
 current_time=$(date +%s)
 spinner=$(get_next_spinner)
 
-#log_debug "Starting Conky logs.sh Script"
+#dbg_log "$debug_sever" "Starting Conky logs.sh Script"
 
 # Get CLI arguments
 enable_debug="${1:-0}"		 	# 0=disabled (default) any other value to enable
 mark_period="${2:-600}"        	# Optional int seconds to self emit in the monitored log 0 to disable, default is 10 mon (600 secs)
-log_sever_no="${3:-4}"   	 	# log severity number (defaults to 4 [warning])
+tgt_log_sev_no="${3:-4}"   	 	# log severity number (defaults to 4 [warning])
 max_entry_count="${4:-60}"   	# Number of log entries (defaults to 60)
 max_entry_width="${5:-152}"  	# max char width to trim each line to (default of 220)
 keyword_filter="${6:-}"      	# Optional keyword to filter logs (highlighted purple)
 hilt_cyan_list="${7:-}"      	# Optional to highlight a specifc term cyan
-hilt_grn_list="${8:-}"      		# Optional to highlight a specifc term green
-hilt_yel_list="${9:-}"      		# Optional to highlight a specifc term yellow
+hilt_grn_list="${8:-}"      	# Optional to highlight a specifc term green
+hilt_yel_list="${9:-}"      	# Optional to highlight a specifc term yellow
 hilt_red_list="${10:-}"    	 	# Optional to highlight a specifc term red
 recent_period="${11:-30}"     	# Optional to temporally highlight a specifc entry w/ 'Fresh' decorations
 aging_period="${12:-120}"     	# Optional to temporally highlight a specifc entry w/ 'Aging' decorations
@@ -523,8 +636,8 @@ temporal_seconds="${13:-3600}"  # Optional temporal period for log fetching.
 
 # Validate inputs
 if ! [[ "$max_entry_count" =~ ^[0-9]+$ ]]; then
-    echo "Invalid max_entry_count: $max_entry_count \(must be a positive integer\)"
-	log_end
+	echo_attn "Invalid max_entry_count: $max_entry_count \(must be a positive integer\)"
+	script_complete
     exit 1
 fi
 
@@ -587,7 +700,7 @@ filter_display=$(echo "$filter_display" | sed 's/ *$//')
 ##################################################################################################
 
 # --- Build Output Header ---
-severity_string=$(select_severity "$log_sever_no")
+severity_string=$(select_severity "$tgt_log_sev_no")
 cache_source="SYSLOG"
 display_header=""
 
@@ -599,7 +712,9 @@ display_header+=":\n"
 
 ##################################################################################################
 
-log_start # when here, this respects debug param passed
+script_start # when here, this respects debug param passed
+
+##################################################################################################
 
 # --- Rate Limit: Allow only one heavy execution every rate_limit_period ms ---
 if [[ -f "$last_run_file" ]]; then
@@ -611,13 +726,14 @@ if [[ -f "$last_run_file" ]]; then
             cached_payload=$(<"$content_cache_file")
 			spinner="░"			# ░ to visually denote cached log displayed
 			echo -e "$header_decor$spinner $display_header$cached_payload"
-			log_debug "Log rate limit exceeded - cache_hit"
-			log_end
+			dbg_echo_log_attn "$debug_sever" "Log rate limit exceeded - cache_hit"
+			script_complete
 			exit 0
         else
             # No previous content? Emit a simple fallback
             echo "\${$col_cyan}Loading..."
-			log_end
+			echo_log_attn "$error_sever" "Cache hit, but Cache is MIA"
+			script_complete
             exit 0
         fi
 	fi
@@ -625,18 +741,25 @@ fi
 
 ##################################################################################################
 
-# --- emit '-- MARK --' to syslog, at the current severity, at the parameterized interval
+# --- emit '-- MARK --' to syslog, at the variable severity, at the parameterized interval, beeping if in debug
 if [[ ${mark_period} -ne 0 ]]; then
-	debug_log_tgt=$(get_dbg_log_name "$log_sever_no")
 	if [[ -f "$last_mark_file" ]]; then
 		last_mark_ms=$(<"$last_mark_file")	
 		if [[ $((current_time_ms - last_mark_ms)) -gt $((mark_period * 1000)) ]]; then
-			logger -s -p user."$debug_log_tgt" -t "$debug_app.$debug_proc" -- "-- MARK --"
 			echo "$current_time_ms" > "$last_mark_file"
+			if [[ "$enable_debug" != "0" ]]; then
+				log_attn "$mark_sever" "-- MARK --"
+			else
+				log "$mark_sever" "-- MARK --"
+			fi
 		fi
 	else	# file is missing, so emit and create it
-		logger -s -p user."$debug_log_tgt" -t "$debug_app.$debug_proc" -- "-- MARK --"
 		echo "$current_time_ms" > "$last_mark_file"
+		if [[ "$enable_debug" != "0" ]]; then
+			log_attn "$mark_sever" "-- MARK --"
+		else
+			log "$mark_sever" "-- MARK --"
+		fi
 	fi
 fi
 
@@ -653,7 +776,7 @@ if [[ -n "$keyword_filter" ]]; then
 fi
 
 fetch_entry_count=$((max_entry_count * fetch_multiplier))
-#log_debug "Generating log entries."
+#dbg_log "$debug_sever" "Generating log entries."
 
 ##################################################################################################
 
@@ -664,12 +787,12 @@ all_logs=$(read_logs | sort -n -t'|' -k1 | tail -n "$max_entry_count")
 if [[ -z "$all_logs" ]]; then
 	echo -e "$header_decor$spinner $cache_content\n"
     echo "\${$col_dkgray}No logs available matching criteria"
-	log_debug "No matching criteria."
-	log_end
+	dbg_echo_log "$debug_sever No matching criteria."
+	script_complete
     exit 0
 fi
 
-log_debug "filter_display: $filter_display"  # placed here after log ingestion to avoid filtering on this
+##### dbg_log "$debug_sever" "filter_display: $filter_display"  # placed here after log ingestion to avoid filtering on this
 
 cache_content=""
 
@@ -726,7 +849,7 @@ sorted_logs=$(sort <<< "$cache_content")
 cache_content=$(echo -e "$sorted_logs" | tail -n "$fetch_entry_count")
 
 line_count=$(wc -l <<< "${cache_content}")
-log_debug "Syslog output to be displayed: $line_count line(s)"
+dbg_log "$debug_sever" "Syslog output to be displayed: $line_count line(s)"
 
 # Save the newly built cache_content to FS cache atomically
 echo -e "$cache_content" > "$tmp_cache_file"
@@ -736,4 +859,4 @@ mv -f "$tmp_cache_file" "$content_cache_file"
 echo -e "$header_decor$spinner $display_header$cache_content"
 
 # --- End Logging ---
-log_end
+script_complete
