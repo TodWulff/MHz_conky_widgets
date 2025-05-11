@@ -46,11 +46,16 @@
 # 5130_1930		 TAW	10May25	feature additions - Released:  via github
 #
 #	✓ Alter color naming scheme, reinstated severity in widget display, spewed a bit about why/what in the readme.
-#		This help to reduce conky buffer overruns especially with longer log entry lines.  Required config
+#		This help to reduce conky buffer overruns especially with longer log entry lines.  Requires config
 #		of color codes in the widgets config file as well as the shell script.
 #
 #.........................................................................................
-
+# 5131_0400		 TAW	11May25	feature additions - Released:  via github
+#
+#	✓ make default value changes, added and went all OCD on test message script <roll eyes>
+#
+#.........................................................................................
+#
 #.........................................................................................
 # To Dos:
 #	- consider a change of presented date/time format, adding ms?
@@ -83,7 +88,7 @@
 # parameters:	2) Optional int seconds to self emit in the monitored log - 0 to disable, default is 10 min (600 secs)
 #				3) log_sever_no - Optional log severity number (defaults to 4 [warning] and 'higher' severity)
 #				4) max_entry_count - Optional Number of log entries (defaults to 60)
-#				5) max_entry_width - Optional Max char width to trim each line to (default of 220)
+#				5) max_entry_width - Optional Max char width to trim each line to (default of 152)
 #				6) keyword_filter - Optional keyword to filter logs
 #				7) hilt_cyan_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
 #				8) hilt_green_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
@@ -98,7 +103,8 @@
 # --- Configuration ---
 enable_debug="1"		# <- ultimately passed as a parameter, but may want one emission at app start.?.
 log_sever_no="7"		# <- ultimately passed as a parameter, but set to info in case emissions are desired at start
-debug_trigger="Conky"
+debug_app="Conky"
+debug_trigger="$debug_app"
 debug_proc="logs.sh"
 mark_period=0
 
@@ -108,8 +114,8 @@ recent_period=60
 aging_period=120
 rate_limit_period=1000	# mS
 
-# color defs for reading ease - color hex codes are defined in the vars section of the widget
-# taking this approach to minimize the text length of the decorations to help minimize buffer
+# color defs for reading ease - COLOR HEX CODES ARE DEFINED IN THE VARS SECTION OF THE WIDGET
+# taking this approach to minimize the text length of the decorations to help minimize buffer overruns
 col_white="color0"
 col_ltgray="color1"
 col_dkgray="color2"
@@ -125,7 +131,7 @@ recent_color="$col_white"
 aging_color="$col_ltgray"
 aged_color="$col_dkgray"
 debug_color="$col_white"
-keyword_color="$col_purple"
+keyword_color="$col_cyan"
 trim_ind_color="$col_magenta"
 highlight_colors=("$col_cyan" "$col_green" "$col_yellow" "$col_red")
 
@@ -142,7 +148,7 @@ last_mark_file="/home/todwulff/tmp/conky_logs_last_mark"
 spinner_state_file="/home/todwulff/tmp/conky_logs_spinner_state"
 
 dbg_temporal_syslog_file="/home/todwulff/tmp/dbg_temporal_syslog"
-dbg_reformat_syslog_file="/home/todwulff/tmp/dbg_reformat_syslog"
+dbg_format_syslog_file="/home/todwulff/tmp/dbg_format_syslog"
 dbg_include_syslog_file="/home/todwulff/tmp/dbg_include_syslog"
 dbg_exclude_syslog_file="/home/todwulff/tmp/dbg_exclude_syslog"
 dbg_pruned_syslog_file="/home/todwulff/tmp/dbg_pruned_syslog"
@@ -172,7 +178,7 @@ log_debug() {
 	debug_log_tgt=$(get_dbg_log_name "$log_sever_no")
     local message="$*"
     if [[ "$enable_debug" != "0" ]]; then
-		logger -p user."$debug_log_tgt" "$debug_trigger $debug_proc: $message"
+		logger -s -p user."$debug_log_tgt" -t "$debug_app.$debug_proc" -- "$message"
     fi
 }
 
@@ -208,10 +214,9 @@ fetch_syslog() {
 	# ASSUMES RSYSLOGD /etc/rsyslog.d/50-default.conf RULE:
 	#	*.*				/var/log/syslog;SyslogFormatWithSeverity
 	#
-	# ASSUMES journald conf is config'd to emit messages to rsyslogd (ForwardToSyslog=yes)
+	# ASSUMES journald.conf is config'd to emit messages to rsyslogd
+	#	ForwardToSyslog=yes	#<-- uncommented in 
 	#
-	
-    echo_debug "\n====================================="
 
     # Validate inputs
     if [[ ! "$temporal_seconds" =~ ^[0-9]+$ ]]; then
@@ -242,15 +247,15 @@ fetch_syslog() {
         7) severities="debug" ;;
     esac
 
-    log_debug "SYSLOG: Fetching up to $fetch_entry_count entries since '$temporal_seconds seconds ago' with severity $log_sever_no"
-	echo_debug "SYSLOG: Fetching up to $fetch_entry_count entries since '$temporal_seconds seconds ago' with severity $log_sever_no"
+    log_debug "Fetching up to $fetch_entry_count entries since '$temporal_seconds seconds ago' with severity $log_sever_no"
 
 	##################################################################################################
 
     # Step 1: Temporal fetch from syslog - have adapted to also do severity filtering on the same pass.
     local sev_str="$severities"
 	local since_str=$(date --date="$temporal_seconds seconds ago" "+%b %d %H:%M:%S")
-	echo_debug "since: $since_str  sev: $sev_str"
+	
+	log_debug "Since: $since_str  Sev: $sev_str"
 	
     local temporal_fetch
 
@@ -293,14 +298,12 @@ fetch_syslog() {
 	# test for last command error
     if [[ $? -ne 0 ]]; then
         log_debug "Error: syslog temporal_fetch command failed for since_str: '$since_str'"
-		echo_debug "Error: syslog temporal_fetch command failed for since_str: '$since_str'"
         return 1
     fi
 	
     # Check if syslog is empty
     if [[ -z "$temporal_fetch" ]]; then
 		log_debug "No syslog entries found since '$since_str'"
-		echo_debug "No syslog entries found since '$since_str'"
 		return 0
     fi
 	
@@ -311,8 +314,7 @@ fetch_syslog() {
 
     # log line count of temporal temporal_fetch
     local temporal_line_count=$(echo -e "$temporal_fetch" | wc -l | awk '{print $1}')	
-    log_debug "Temporal fetched $temporal_line_count entries from syslog for filtering"
-	echo_debug "Temporal fetched $temporal_line_count entries from syslog for filtering"
+    log_debug "temporal_fetch: $temporal_line_count entries from syslog for processing"
 
 	##################################################################################################
 
@@ -320,12 +322,10 @@ fetch_syslog() {
     local include_results
     if [[ -n "$include_regex" ]]; then
         include_results=$(echo "$temporal_fetch" | grep -aEi -- "$include_regex" || true)
-		log_debug "+) Syslog Applied include_regex: >$include_regex<"
-		echo_debug "+) Syslog Applied include_regex: >$include_regex<"
+		log_debug "+) include_regex: >$include_regex<"
     else
         include_results="$temporal_fetch"
-        log_debug "+) Syslog No include_regex"
-		echo_debug "+) Syslog No include_regex"
+        log_debug "+) No include_regex"
     fi
 
 	#save the temporal+include syslog
@@ -334,8 +334,7 @@ fetch_syslog() {
 	fi
 	
     local include_line_count=$(echo -e "$include_results" | wc -l | awk '{print $1}')
-	log_debug "Syslog output contains $include_line_count line(s) after 'include filtering'"
-	echo_debug "Syslog output contains $include_line_count line(s) after 'include filtering'"
+	log_debug "include_regex: $include_line_count line(s) after include_regex"
 
 	##################################################################################################
 
@@ -343,12 +342,10 @@ fetch_syslog() {
     local exclude_results
     if [[ -n "$exclude_regex" ]]; then
         exclude_results=$(echo "$include_results" | grep -aEiv -- "$exclude_regex" || true)
-		log_debug "-) Syslog Applied exclude_regex: >$exclude_regex<"
-		echo_debug "-) Syslog Applied exclude_regex: >$exclude_regex<"
+		log_debug "-) exclude_regex: >$exclude_regex<"
     else
         exclude_results="$include_results"
-        log_debug "-) Syslog No exclude_regex"
-		echo_debug "-) Syslog No exclude_regex"
+        log_debug "-) No exclude_regex"
    fi
 	
 	#save the temporal+include+exclude syslog
@@ -357,8 +354,7 @@ fetch_syslog() {
 	fi
 	
     local exclude_line_count=$(echo -e "$exclude_results" | wc -l | awk '{print $1}')
-	log_debug "Syslog output contains $exclude_line_count line(s) after 'exclude filtering'"
-	echo_debug "Syslog output contains $exclude_line_count line(s) after 'exclude filtering'"
+	log_debug "exclude_regex: $exclude_line_count line(s) after exclude_regex"
 
 	##################################################################################################
 
@@ -371,17 +367,16 @@ fetch_syslog() {
 	fi
 	
     local pruned_line_count=$(echo -e "$pruned_output" | wc -l | awk '{print $1}')
-	log_debug "Syslog output contains $pruned_line_count line(s) after 'pruning'"
-	echo_debug "Syslog output contains $pruned_line_count line(s) after 'pruning'"
+	log_debug "prune: $pruned_line_count line(s) after pruning"
 
 	##################################################################################################
 
-    # Step 5: Reformat output for display
-    local reformat_output
+    # Step 5: format output for display
+    local format_output
     local output_line
-	local reformat_line_count
+	local format_line_count
 	
-	reformat_output=""
+	format_output=""
 	
     while IFS= read -r line; do
         # Skip empty lines
@@ -392,7 +387,7 @@ fetch_syslog() {
         log_epoch=$(date -d "$log_time" +%s 2>/dev/null)
 
         if [[ -z "$log_epoch" ]]; then
-            echo_debug "Skipping line with invalid log_time: $log_time"
+            log_debug "Skipping line with invalid log_time: $log_time"
             continue
         fi
 
@@ -403,23 +398,22 @@ fetch_syslog() {
 
         # Format the output line
 		output_line="$log_epoch|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
-        reformat_output+="$output_line\n"
+        format_output+="$output_line\n"
     done <<< "$pruned_output"
 
-	#save temporal+include+exclude+reformat syslog fetch
+	#save temporal+include+exclude+format syslog fetch
 	if [[ "$enable_debug" != "0" ]]; then
-		echo -e "$reformat_output" > "$dbg_reformat_syslog_file"
+		echo -e "$format_output" > "$dbg_format_syslog_file"
 	fi
 	
-    reformat_line_count=$(echo -e "$reformat_output" | wc -l | awk '{print $1}')
-	log_debug "Syslog output contains $reformat_line_count line(s) after 'reformatting'"
-	echo_debug "Syslog output contains $reformat_line_count line(s) after 'reformatting'"
+    format_line_count=$(echo -e "$format_output" | wc -l | awk '{print $1}')
+	log_debug "format: $format_line_count line(s) after formatting"
 
 	##################################################################################################
 
     # Output the filtered and limited results
-    echo -e "$reformat_output"
-    log_debug "SYSLOG: provided $reformat_line_count log entries"
+    echo -e "$format_output"
+    #log_debug "SYSLOG: provided $format_line_count log entries"
 }
 
 read_logs() {
@@ -492,14 +486,14 @@ calculate_time_difference_ns() {
 
 log_start() {
 	start_nanotime=$(date +%s%N)
-	log_debug "---------------------------------------------------"
-	log_debug "Syslog Conky Widget Start"
+#	log_debug "---------------------------------------------------"
+#	log_debug "Startng"
 }
 
 log_end() {
 	end_nanotime=$(date +%s%N)
 	dur_nanotime=$(calculate_time_difference_ns "$start_nanotime" "$end_nanotime")
-	log_debug "Syslog Conky Widget Took: $dur_nanotime"
+	log_debug "Finished - Took: $dur_nanotime"
 	log_debug "==================================================="
 }
 
@@ -517,7 +511,7 @@ enable_debug="${1:-0}"		 	# 0=disabled (default) any other value to enable
 mark_period="${2:-600}"        	# Optional int seconds to self emit in the monitored log 0 to disable, default is 10 mon (600 secs)
 log_sever_no="${3:-4}"   	 	# log severity number (defaults to 4 [warning])
 max_entry_count="${4:-60}"   	# Number of log entries (defaults to 60)
-max_entry_width="${5:-220}"  	# max char width to trim each line to (default of 220)
+max_entry_width="${5:-152}"  	# max char width to trim each line to (default of 220)
 keyword_filter="${6:-}"      	# Optional keyword to filter logs (highlighted purple)
 hilt_cyan_list="${7:-}"      	# Optional to highlight a specifc term cyan
 hilt_grn_list="${8:-}"      		# Optional to highlight a specifc term green
@@ -577,13 +571,13 @@ filter_display=""
 
 if [[ ${#include_filters[@]} -gt 0 ]]; then
     IFS=', '
-    filter_display+="\${$col_cyan}Include: \${$col_purple}${include_filters[*]} "
+    filter_display+="\${$col_cyan}Include: \${$col_yellow}${include_filters[*]}\${$col_orange} | "
     unset IFS
 fi
 
 if [[ ${#exclude_filters[@]} -gt 0 ]]; then
     IFS=', '
-    filter_display+="\${$col_cyan}Exclude: \${$col_purple}${exclude_filters[*]} "
+    filter_display+="\${$col_cyan}Exclude: \${$col_yellow}${exclude_filters[*]}"
     unset IFS
 fi
 
@@ -597,9 +591,9 @@ severity_string=$(select_severity "$log_sever_no")
 cache_source="SYSLOG"
 display_header=""
 
-display_header+="\${$col_purple}$cache_source\${$col_orange} "
-display_header+="entries ≥ \${$col_purple}$severity_string \${$col_orange}(\${$col_white}Recent, \${$col_ltgray}Aging, \${$col_dkgray}Aged\${$col_orange})"
-[[ -n "$filter_display" ]] && display_header+=" [\${$col_purple}$filter_display\${$col_orange}]"
+display_header+="\${$keyword_color}$cache_source\${$col_orange} "
+display_header+="entries ≥ \${$keyword_color}$severity_string \${$col_orange}(\${$col_white}Recent, \${$col_ltgray}Aging, \${$col_dkgray}Aged\${$col_orange})"
+[[ -n "$filter_display" ]] && display_header+=" [\${$keyword_color}$filter_display\${$col_orange}]"
 
 display_header+=":\n"
 
@@ -633,15 +627,15 @@ fi
 
 # --- emit '-- MARK --' to syslog, at the current severity, at the parameterized interval
 if [[ ${mark_period} -ne 0 ]]; then
+	debug_log_tgt=$(get_dbg_log_name "$log_sever_no")
 	if [[ -f "$last_mark_file" ]]; then
 		last_mark_ms=$(<"$last_mark_file")	
 		if [[ $((current_time_ms - last_mark_ms)) -gt $((mark_period * 1000)) ]]; then
-			# file is present, and time recorded therein exceeds mark period, so emit and save time
-			logger -p user."$debug_log_tgt" "$debug_trigger $debug_proc: -- MARK --"
+			logger -s -p user."$debug_log_tgt" -t "$debug_app.$debug_proc" -- "-- MARK --"
 			echo "$current_time_ms" > "$last_mark_file"
 		fi
 	else	# file is missing, so emit and create it
-		logger -p user."$debug_log_tgt" "$debug_trigger $debug_proc: -- MARK --"
+		logger -s -p user."$debug_log_tgt" -t "$debug_app.$debug_proc" -- "-- MARK --"
 		echo "$current_time_ms" > "$last_mark_file"
 	fi
 fi
@@ -659,7 +653,7 @@ if [[ -n "$keyword_filter" ]]; then
 fi
 
 fetch_entry_count=$((max_entry_count * fetch_multiplier))
-log_debug "Generating log entries."
+#log_debug "Generating log entries."
 
 ##################################################################################################
 
