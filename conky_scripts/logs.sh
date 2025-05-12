@@ -76,40 +76,49 @@
 #		# case 11 - dbg_log_attn	Expects severity number as the first argument
 #		# case 12 - dbg_echo_log_attn	Expects severity number as the first argument
 #		
-#		mark_sever="6"		# severity used for the periodic -- MARK -- logs,
-#		if so enabled in the parameters (6=info - followed rsyslogd's lead here)
-#		
-#		debug_sever="7"		# this is the severity used for debug logging in ... debug.!.
 #		
 #		tgt_log_sev_no="6"	# <- ultimately passed as a parameter - but setting early
-#
-#		error_sever="3"		# this is the severity used for logging of script errors
+#		
+#		debug_sever="7"		# this is the severity used for debug logging in ... debug.!.
+#		error_sever="3"		# this is the severity used for logging of script ... errors
+#		mark_sever="6"		# severity used for the periodic -- MARK -- logs,
+#			if so enabled in the parameters (6=info - followed rsyslogd's lead here)
 #
 #.........................................................................................
+# 5132_1000		 TAW	12May25	code/implementation refinement -  Released:  via github
 #
+#	✓ strip out all of the journal shite#
+#	✓ need to save the generated ouput on a the initial run and then any runs < a second later, just repost same
+#	✓ having the scrip just exiting early w/o providing content if it runs <1sec ago causes flashing of the widget
+#	✓ only rerun the log ingestion and parsing once per second
+#	✓ figure out how to do an inverted filter list - to reject display of items
+#
+#.........................................................................................
+#.........................................................................................
 #.........................................................................................
 # To Dos:
 #	- implement aural warnings on a threshold level (i.e. alert, critical, emerg/panic)
+#	- implement programmatic disablement of debug files when running debug but not worrying about the fetching
+#		or filtering.
 #	- consider a change of presented date/time format, adding ms?
 #	- consider supporting passing severity names vs. (magic) numbers?
-#	- figure out how to do an inverted filter list - to reject display of items
-#	- need to save the generated ouput on a the initial run and then any runs < a second later, just repost same
-#	- only rerun the log ingestion and parsing once per second
-#	- having the scrip just exiting early w/o providing content if it runs <1sec ago causes flashing of the widget
-#	- looks like conky is calling the script at a 20ms rate (50x per sec) on this box/system
+#	- looks like conky is calling the script at a 20ms rate (50x per sec) on this box/system .?.  that seems wrong?
 #	- fix mia header when the tool is starved of content
 #	- see about the intermitted space between the header and body
 #	- adapt coloring to respect the dimming with age concept (3 levels for each:  'fields', cyan, green, yellow, red
+#		so conky's keywords only support colorX where X is 0-9 inclusive, and all are used in current highlighting
+#		and log decorations
 #	- fix the dynamic warn/warning highlights - may need to look at error/err & emerg/panic too
-#	- strip out all of the journal shite
-#	- consider sudo and getting nice escalations in place
-#	- consider a rules implementaiton approach
+#		yeah, this is a nag only - depending on the script behavior and regex and automatic list sorting?, 
+#		for terms with dual keywords/names (emer/panic, warn/warning, err/error, the 'logic' i've crafted is borked
+#	- consider sudo and getting nice escalations in place - needed ISO programmatic control/adj call's 'nice' factor ;)
+#	- consider a rules implementation approach - dunno where my gray matter was when I drafted this note and WTF it means
 #	- can widget text be made to be selectable
 #	- can the widget be made into a window
 #	- can widget have event support - click on header severity to popup and select different severities ... exclude ... include ...
 #	- add duration data to header
 #	- add hotspot on click on duration to change it
-#	- consider collections separate from display (see cpu power polling/calculation vs calculation/reporting)
+#	- consider collections separate from display for logs (see cpu power polling/calculation | formatting/reporting)
 #	- on save, evaluate impact of blocking wait on fs save
 #	  
 #========================================================================================
@@ -151,8 +160,6 @@ recent_period=60
 aging_period=120
 rate_limit_period=1000	# mS
 
-blah=0
-
 # color defs for reading ease - COLOR HEX CODES ARE DEFINED IN THE VARS SECTION OF THE WIDGET
 # taking this approach to minimize the text length of the decorations to help minimize buffer overruns
 col_white="color0"
@@ -170,11 +177,11 @@ recent_color="$col_white"
 aging_color="$col_ltgray"
 aged_color="$col_dkgray"
 debug_color="$col_white"
-keyword_color="$col_cyan"
+keyword_color="$col_purple"
 trim_ind_color="$col_magenta"
 highlight_colors=("$col_cyan" "$col_green" "$col_yellow" "$col_red")
 
-header_decor="\${font DejaVu Sans Mono:size=9}\${$col_cyan}"
+header_decor="\${$col_purple}"
 
 severity_levels=("EMERGENCY" "ALERT" "CRITICAL" "ERROR" "WARNING" "NOTICE" "INFO" "DEBUG")	# for visual purposes
 severity_names=("emerg" "alert" "crit" "err" "warning" "notice" "info" "debug")				# for programmatic purposes
@@ -209,7 +216,7 @@ log_fetchers=(
 # --- Functions ---
 
 attention() {
-	printf "\a" >&2
+	printf "\a" >&2; sleep 0.1; printf "\a" >&2
 }
 
 dbg_attn() {
@@ -528,10 +535,6 @@ fetch_syslog() {
     echo -e "$format_output"
 }
 
-read_logs() {
-    fetch_syslog
-}
-
 select_severity() {
     local idx="$1"
 	dbg_log "$debug_sever"  "select_severity: lookup: $idx  Result: ${severity_levels[$idx]:-DEBUG}"
@@ -599,14 +602,14 @@ calculate_time_difference_ns() {
 
 script_start() {
 	start_nanotime=$(date +%s%N)
-#	dbg_log "$debug_sever" "---------------------------------------------------"
-#	dbg_log "$debug_sever" "Startng"
+	dbg_log "$debug_sever" "---------------------------------------------------"
+	dbg_log "$debug_sever" "Started: $start_nanotime"
 }
 
 script_complete() {
 	end_nanotime=$(date +%s%N)
 	dur_nanotime=$(calculate_time_difference_ns "$start_nanotime" "$end_nanotime")
-	dbg_log "$debug_sever" "Finished - Took: $dur_nanotime"
+	dbg_log "$debug_sever" "Finished: $end_nanotime - Took: $dur_nanotime"
 	dbg_log "$debug_sever" "==================================================="
 }
 
@@ -617,9 +620,7 @@ current_time_ms=$(date +%s%3N)
 current_time=$(date +%s)
 spinner=$(get_next_spinner)
 
-#dbg_log "$debug_sever" "Starting Conky logs.sh Script"
-
-# Get CLI arguments
+# Get CLI arguments (they are all Optional)
 enable_debug="${1:-0}"		 	# 0=disabled (default) any other value to enable
 mark_period="${2:-600}"        	# Optional int seconds to self emit in the monitored log 0 to disable, default is 10 mon (600 secs)
 tgt_log_sev_no="${3:-4}"   	 	# log severity number (defaults to 4 [warning])
@@ -725,7 +726,7 @@ if [[ -f "$last_run_file" ]]; then
         if [[ -f "$content_cache_file" ]]; then
             cached_payload=$(<"$content_cache_file")
 			spinner="░"			# ░ to visually denote cached log displayed
-			echo -e "$header_decor$spinner $display_header$cached_payload"
+			echo "$header_decor$spinner $display_header$cached_payload"
 			dbg_echo_log_attn "$debug_sever" "Log rate limit exceeded - cache_hit"
 			script_complete
 			exit 0
@@ -781,7 +782,7 @@ fetch_entry_count=$((max_entry_count * fetch_multiplier))
 ##################################################################################################
 
 # --- Fetch and Process Logs ---
-all_logs=$(read_logs | sort -n -t'|' -k1 | tail -n "$max_entry_count")
+all_logs=$(fetch_syslog | sort -n -t'|' -k1 | tail -n "$max_entry_count")
 
 # Handle no logs case
 if [[ -z "$all_logs" ]]; then

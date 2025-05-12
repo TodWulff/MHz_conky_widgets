@@ -14,8 +14,9 @@ conky.config = {
 	draw_outline = false,
 	draw_shades = false,
 
-	-- gap_x = -1905,
-	gap_x = -3275,
+	gap_x = -1905,
+	-- gap_x = -3275,
+	-- gap_x = -3810,
 	-- gap_x = 10,
 	gap_y = 10,
 	net_avg_samples = 2,
@@ -43,7 +44,30 @@ conky.config = {
 
 	use_xft = true,
 	xftalpha = 0.1,
-	font = 'Droid Sans:size=12',
+	
+-- I use this cli to emit a really long log to use to help with pruning line lengths
+-- 	logger -p user.7 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+	
+--	Mono Fonts I've/I'll looked at - see: https://github.com/brndnmtthws/conky/issues/677 for refreshing the font cache
+--	font = 'Droid Sans:size=12',
+--	font = 'Ubuntu Mono::size=14',
+--	font = 'Noto Mono:size=14',
+--	font = 'Noto Sans Mono:size=12',
+	font = 'DejaVu Sans Mono:size=12',
+	
+--	font = 'Liberation Mono:size=12',
+--	font = 'Nimbus Mono PS:size=12',
+--	font = 'FreeMono:size=12',
+--	font = 'Nimbus Mono L:size=12',
+--	font = 'Tlwg Mono:size=12',
+--	font = 'Mitra:size=12',
+--	font = 'FreeMono:size=12',
+--	font = 'Noto Sans Mono CJK TC:size=12',
+--	font = 'Noto Sans Mono CJK SC:size=12',
+--	font = 'Noto Sans Mono CJK KR:size=12',
+--	font = 'Noto Sans Mono CJK HK:size=12',
+--	font = 'Noto Sans Mono CJK JP:size=12',
+--	font = 'xxx:size=12',
 	
 --  Colors are asserted herein so decorations on syslog script emissions can have lower risk of buffer overrun issues
 --			  color						 name		syslog widget ui element
@@ -59,7 +83,7 @@ conky.config = {
 	color8 = '#FFA300',				-- # orange		'regular' widget base text
 	color9 = '#FF00CD',				-- # magenta	trim_ind_color
 
---  # optional parameters:
+--  # optional script parameters:
 --  # default	details
 --	#	0			1) debug enable - Optional int to 0=disabled (default) any other value to enable
 --	#	600			2) mark_period - Optional int seconds to self emit in the monitored log - 0 to disable, default is 0
@@ -75,9 +99,15 @@ conky.config = {
 --	#	120			12) aging_period - Optional int period in Seconds for 'Aging' decorations to be applied
 --	#	3600		13) temporal fetch - Optional int period in Seconds for pulling in pre-filtered journal and syslog etries
 
+
+--  killall conky is one way to cease it from running if things go awray or need to be forcibly reloaded.
+--  I've become accustomed to using htop's filtering on the term 'panel' and F9/entering on the process of interest
+--  (all of my widgets are entitled with the term 'panel')
+
 --  after a kill, run this (can ctl-c and it'll stay running):
 --  note: but will still echo from conky, if terminal window remains in play
 
+--	cli to start the widget manually if a reload fails for w/e reason...
 --		cd "$HOME/.conky/MHz_conky_widgets"; conky -c "$HOME/.conky/MHz_conky_widgets/Syslog Panel" &
 
 -- in the logs.sh script, I implemented an 'Include then Exclude' context for log filtering See:
@@ -105,15 +135,16 @@ conky.text = [[#
 #
 # for ease of reference:
 #
-#															   0 emerg
-#															   1 alert
+# 10pt ft 152 for 1280x1024 4:3 or 228 for 16:9	               0 emerg
+# 12pt font 162 on a 16:9									   1 alert
 #															   2 crit
 #															   3 err
 #															   4 warning
 #															   5 notice
 #															   6 info
-#															   7 debug  |---------------------------- REGEX SUPPORTED IN THESE FILTER AND HIGHLIGHT FIELDS ----------------------------|
+#															   7 debug     |--------------------------- REGEX SUPPORTED IN THESE FILTER AND HIGHLIGHT FIELDS ---------------------------|
 #
-${execp ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 600 7 60 152 "-gnome-shell,-sess.*ed,-PWD.*ets" "Conky.*rk --" "debug,info" "warning,notice" "error,crit,alert,emerg,panic,err" 120 300 600}
+#${execpi 5 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 600 7 52 169 "" "mark" "debug,info" "warning,warn,notice,error,err" "crit,alert,emerg,panic" 120 300 1000}
+${execpi 1 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 1200 7 52 162 "-gnome-shell,-sess.*ed,-PWD.*ets" "mark" "debug,info" "warning,warn,notice,error,err" "crit,alert,emerg,panic" 120 300 1000}
 ]];
 -- the exclusions are useful (for me 'cause of my system's chattiness) filter regex: -gnome-shell,-sess.*ed,-PWD.*ets
