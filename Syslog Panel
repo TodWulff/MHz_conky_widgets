@@ -151,7 +151,7 @@ conky.text = [[#
 #															   7 debug     |--------------------------- REGEX SUPPORTED IN THESE FILTER AND HIGHLIGHT FIELDS ---------------------------|
 #
 #${execpi 5 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 600 7 52 169 "" "mark" "debug,info" "warning,warn,notice,error,err" "crit,alert,emerg,panic" 120 300 1000}
-${execpi 3 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 1200 7 52 162 "-gnome-shell,-PWD.*ets,-sess.*ed" "mark" "debug,info" "warning,notice,err,error" "crit,alert,emerg,panic" 120 300 1000}
+${execpi 5 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 1200 7 52 162 "-gnome-shell,-PWD.*ets,-sess.*ed" "mark" "debug,info" "warning,notice,err,error" "crit,alert,emerg,panic" 120 300 1000}
 ]];
 
 -- the exclusions are useful (for me 'cause of my system's chattiness) filter regex: -gnome-shell,-sess.*ed,-PWD.*ets

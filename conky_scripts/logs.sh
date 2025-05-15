@@ -96,7 +96,7 @@
 #		 first to filter out desired log entries and then any excludes are applied thereon
 #
 #.........................................................................................
-# 5135_1800		 TAW	15May25	code/implementation refinement -  Released:  via github
+# 5135_1830		 TAW	15May25	code/implementation refinement -  Released:  via github
 #
 #	✓ modified date/time presentation format to show MM-DD HH:MM:SS.mmm (removed year, added milliseconds)
 #	✓ improved temporal sorting with millisecond precision to ensure stable ordering of entries
@@ -109,6 +109,12 @@
 #	✓ implemented programmatic disablement of debug files when running debug but not worrying
 #		about the fetching or filtering.#
 #	✓ started implementation of PID enumeration in self logging - more work to do there
+#	
+#.........................................................................................
+# 5135_1900		 TAW	15May25	code/implementation refinement -  Released:  via github
+#
+#	✓ implemented fix for bug introduced with date/time presentation formatting - the temporal
+#		highlighting for aging and aged log entries presented broke.  Copilot is my friend.
 #
 #.........................................................................................
 #.........................................................................................
@@ -568,8 +574,10 @@ fetch_syslog() {
         log_message=$(cut -d' ' -f6- <<< "$line")
 
         # Format the output line - use epoch+ms for precise sorting
-        output_epoch="${log_epoch}${ms_hash}"  # Append ms to epoch for precise sorting
-        output_line="${output_epoch}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
+#        output_epoch="${log_epoch}${ms_hash}"  # Append ms to epoch for precise sorting
+#        output_line="${output_epoch}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
+		output_line="${log_epoch}|${ms_hash}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
+
         format_output+="$output_line\n"
     done <<< "$pruned_output"
 
@@ -857,13 +865,10 @@ syslog_processing_vitals=$(<"$proc_vitals_file")
 
 
 # append the proc vitals onto header line
-#last_dur=$(<"$last_dur_file")
-#display_header+=" [$last_dur: $syslog_processing_vitals]:"
-
 last_dur=$(<"$last_dur_file")
 last_dur_trimmed=$(printf "%.1f%s\n" $(echo "$last_dur"))
-uptime_formatted=$(uptime -p | awk '{print substr($0, 4)}')
-display_header+=" [$last_dur_trimmed: $syslog_processing_vitals] ($uptime_formatted):"
+
+display_header+=" [$last_dur_trimmed: $syslog_processing_vitals] (\${uptime}):"	# uptime is a conky function, iirc.
 
 # anything else.?.
 display_header+="\n"
@@ -886,8 +891,14 @@ cache_content=""
 # --- Build Output Content ---
 # loop through logs and build the balance of the display content.
 
-while IFS='|' read -r epoch source formatted_time source_machine log_message; do
-    time_diff=$((current_time - epoch))
+#while IFS='|' read -r epoch source formatted_time source_machine log_message; do
+#    time_diff=$((current_time - epoch))
+	
+	
+while IFS='|' read -r log_epoch ms_hash source formatted_time source_machine log_message; do
+    time_diff=$((current_time - log_epoch))
+	
+	
     tenure_color=$(temporal_color "$time_diff" "$log_message")
     
     # Trim and mark with tooltip if needed
