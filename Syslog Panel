@@ -14,11 +14,14 @@ conky.config = {
 	draw_outline = false,
 	draw_shades = false,
 
-	gap_x = -1905,
+	-- these are positioning on the screens/displays and must be tweaked per each user's setup
+	gap_x = -1895,
 	-- gap_x = -3275,
 	-- gap_x = -3810,
 	-- gap_x = 10,
-	gap_y = 10,
+	gap_y = 0,
+	
+	
 	net_avg_samples = 2,
 	no_buffers = true,
 	out_to_console = false,
@@ -45,19 +48,22 @@ conky.config = {
 	use_xft = true,
 	xftalpha = 0.1,
 	
--- I use this cli to emit a really long log to use to help with pruning line lengths
+-- I use this cli to emit a really long log to use to help with determining the length at which to prune lines
 -- 	logger -p user.7 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
 	
 --	Mono Fonts I've/I'll looked at - see: https://github.com/brndnmtthws/conky/issues/677 for refreshing the font cache
---	font = 'Droid Sans:size=12',
+--	font = 'Droid Sans:size=13',
 --	font = 'Ubuntu Mono::size=14',
---	font = 'Noto Mono:size=14',
+--	font = 'Noto Mono:size=12',
 --	font = 'Noto Sans Mono:size=12',
+--	font = 'DejaVu Sans Mono:size=12:style=Bold',
+
 	font = 'DejaVu Sans Mono:size=12',
 	
 --	font = 'Liberation Mono:size=12',
 --	font = 'Nimbus Mono PS:size=12',
 --	font = 'FreeMono:size=12',
+--	font = 'FreeMono:size=12:style=Bold',
 --	font = 'Nimbus Mono L:size=12',
 --	font = 'Tlwg Mono:size=12',
 --	font = 'Mitra:size=12',
@@ -75,36 +81,36 @@ conky.config = {
 	color0 = '#FFFFFF',				-- # white		recent_color, debug_color
 	color1 = '#BBBBBB',				-- # ltgray		aging_color
 	color2 = '#777777',				-- # dkgray		aged_color
-	color3 = '#E196FF',				-- # purple		keyword_color
+	color3 = '#FFFFFF',				-- # WHITE		blah_color [NOT USED AS OF 15MAY2025]
 	color4 = '#00FFFF',				-- # cyan		highlight terms 0, 'heart beat spinner'
 	color5 = '#00FF00',				-- # green		highlight terms 1
-	color6 = '#FFEA00',				-- # yellow		highlight terms 2
+	color6 = '#E0FF00',				-- # yellow		highlight terms 2
 	color7 = '#FF3333',				-- # red		highlight terms 3
-	color8 = '#FFA300',				-- # orange		'regular' widget base text
-	color9 = '#FF00CD',				-- # magenta	trim_ind_color
+	color8 = '#FE7E0F',				-- # orange		'regular' widget base text
+	color9 = '#FF00FF',				-- # magenta	trim_ind_color
 
 --  # optional script parameters:
 --  # default	details
---	#	0			1) debug enable - Optional int to 0=disabled (default) any other value to enable
---	#	600			2) mark_period - Optional int seconds to self emit in the monitored log - 0 to disable, default is 0
---	#	4			3) log_sever_no - Optional int for log severity number (defaults to 4 [warning] and 'higher' severity)
---	#	60			4) max_entry_count - Optional int for qty of log entries (defaults to 60)
---	#	152			5) max_entry_width - Optional int Max char width to trim each line to (default of 220)
---	#	""			6) keyword_filter 	[REGEX] - Optional case-insentive to filter logs (negate to reject, non-negated to invert rejection)
---	#	""			7) hilt_cyan_list 	[REGEX] - Optional "comma,separated,values" list of keywords to decorate indicated/REGEX terms to specific colors
---	#	""			8) hilt_green_list 	[REGEX] - Optional "comma,separated,values" list of keywords to decorate indicated/REGEX terms to specific colors
---	#	""			9) hilt_yellow_list [REGEX] - Optional "comma,separated,values" list of keywords to decorate indicated/REGEX terms to specific colors
+--	#	0			 1) debug enable - Optional int to 0=disabled (default) any other value to enable
+--	#	600			 2) mark_period - Optional int seconds to self emit in the monitored log - 0 to disable, default is 0
+--	#	4			 3) log_sever_no - Optional int for log severity number (defaults to 4 [warning] and 'higher' severity)
+--	#	60			 4) max_entry_count - Optional int for qty of log entries (defaults to 60)
+--	#	152			 5) max_entry_width - Optional int Max char width to trim each line to (default of 220)
+--	#	""			 6) keyword_filter 	[REGEX] - Optional case-insentive to filter logs (negate to reject, non-negated to invert rejection)
+--	#	""			 7) hilt_cyan_list 	[REGEX] - Optional "comma,separated,values" list of keywords to decorate indicated/REGEX terms to specific colors
+--	#	""			 8) hilt_green_list 	[REGEX] - Optional "comma,separated,values" list of keywords to decorate indicated/REGEX terms to specific colors
+--	#	""			 9) hilt_yellow_list [REGEX] - Optional "comma,separated,values" list of keywords to decorate indicated/REGEX terms to specific colors
 --	#	""			10) hilt_red_list 	[REGEX] - Optional "comma,separated,values" list of keywords to decorate indicated/REGEX terms to specific colors
 --	#	30			11) recent_period - Optional int period in Seconds for 'Fresh' decorations to be applied = 
 --	#	120			12) aging_period - Optional int period in Seconds for 'Aging' decorations to be applied
 --	#	3600		13) temporal fetch - Optional int period in Seconds for pulling in pre-filtered journal and syslog etries
 
 
---  killall conky is one way to cease it from running if things go awray or need to be forcibly reloaded.
+--  pkill -f "conky_widget" - is one way to cease it from running if things go awray or need to be forcibly reloaded.
 --  I've become accustomed to using htop's filtering on the term 'panel' and F9/entering on the process of interest
 --  (all of my widgets are entitled with the term 'panel')
 
---  after a kill, run this (can ctl-c and it'll stay running):
+--  after a pkill, run this (can ctl-c and it'll stay running):
 --  note: but will still echo from conky, if terminal window remains in play
 
 --	cli to start the widget manually if a reload fails for w/e reason...
@@ -133,10 +139,10 @@ conky.text = [[#
 # log entries older than 300s highlighted as AGED, and
 # log entries newer than 600s are retreived and processed (some processes are pretty chatty) and can cause starvation when filtered
 #
-# for ease of reference:
+# for ease of reference: 
 #
 # 10pt ft 152 for 1280x1024 4:3 or 228 for 16:9	               0 emerg
-# 12pt font 162 on a 16:9									   1 alert
+# 12pt font 162 on a 16:9	 								   1 alert
 #															   2 crit
 #															   3 err
 #															   4 warning
@@ -145,6 +151,10 @@ conky.text = [[#
 #															   7 debug     |--------------------------- REGEX SUPPORTED IN THESE FILTER AND HIGHLIGHT FIELDS ---------------------------|
 #
 #${execpi 5 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 600 7 52 169 "" "mark" "debug,info" "warning,warn,notice,error,err" "crit,alert,emerg,panic" 120 300 1000}
-${execpi 1 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 1200 7 52 162 "-gnome-shell,-sess.*ed,-PWD.*ets" "mark" "debug,info" "warning,warn,notice,error,err" "crit,alert,emerg,panic" 120 300 1000}
+${execpi 3 ~/.conky/MHz_conky_widgets/conky_scripts/logs.sh 0 1200 7 52 162 "-gnome-shell,-PWD.*ets,-sess.*ed" "mark" "debug,info" "warning,notice,err,error" "crit,alert,emerg,panic" 120 300 1000}
 ]];
+
 -- the exclusions are useful (for me 'cause of my system's chattiness) filter regex: -gnome-shell,-sess.*ed,-PWD.*ets
+
+-- useful to help with width adjustment
+-- logger -p user.7 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
