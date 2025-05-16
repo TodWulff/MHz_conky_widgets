@@ -113,8 +113,17 @@
 #.........................................................................................
 # 5135_1900		 TAW	15May25	code/implementation refinement -  Released:  via github
 #
-#	✓ implemented fix for bug introduced with date/time presentation formatting - the temporal
-#		highlighting for aging and aged log entries presented broke.  Copilot is my friend.
+#	✓ implemented fix for bug introduced with date/time presentation formatting - temporal
+#		highlighting for aging and aged log entries became borked.  Copilot is my friend.
+#
+#.........................................................................................
+# 5136_1200		 TAW	16May25	code/implementation refinement -  Released:  via github
+#
+#	✓ Completed implementing a more expressive presentation of PID dynamics - normal ops,
+#		PID of hostconky widget is presented in header bar and any log entries made 
+#		(--id=blah logger param).  When in debug mode, this script's PID is presented 
+#		(-i logger param and the PID chain is part of the log message when organic log
+#		entries are programmatically made.
 #
 #.........................................................................................
 #.........................................................................................
@@ -170,9 +179,13 @@
 # --- Configuration ---
 enable_debug="1"				# 0 = disable, !0 = enable <- ultimately passed as a parameter, but may want one emission at app start.?.
 enable_fetch_filter_debug="0"	# 0 = disable, !0 = enable
-debug_app="Conky"
-debug_trigger="$debug_app"
+
+app="Conky_Widget"
+proc="Syslog_Panel"
+
+debug_app="Syslog_Panel"
 debug_proc="logs.sh"
+
 mark_period=0					# in seconds
 
 tgt_log_sev_no="7"				# <- ultimately passed as a parameter, but setting early, in case it's needed
@@ -185,7 +198,7 @@ syslog_format="short-unix"
 
 recent_period=60
 aging_period=120
-rate_limit_period=5000			# mS
+rate_limit_period=1000			# mS
 
 # color defs for reading ease - COLOR HEX CODES ARE DEFINED IN THE VARS SECTION OF THE WIDGET
 # taking this approach to minimize the text length of the decorations to help minimize buffer overruns
@@ -214,6 +227,7 @@ highlight_colors=("$col_cyan" "$col_green" "$col_yellow" "$col_red")
 
 spinner_chars=("🌔" "🌓" "🌒" "🌑" "🌘" "🌗" "🌖" "🌕")
 spinner_decor="\${font Common:size=18}\${color6}"
+cache_spinner="⁂" # ⁂ to visually denote cached log displayed (char is a tri-snowflake if it doesn't render)
 
 syslog_processing_vitals="Fetch/Include/Exclude/Prune/Format"
 proc_vitals_file="/home/todwulff/tmp/syslog_vitals_tmp"
@@ -264,7 +278,13 @@ log() {
 	shift
 	local message=("$@")
 	local log_tgt=$(get_log_name "$sever_no")
-	logger -s -i -p user."$log_tgt" -t "$debug_app.$debug_proc" -- "$message"
+    if [[ "$enable_debug" != "0" ]]; then
+		# provide granular log entries [includes PID chain up to init]
+		logger -s -p user."$log_tgt" -t "$debug_app.$debug_proc" -i -- "[$pid_chain] $message"	
+	else
+		# provides high-level log entries [PID referenced to the parent widget's PID]
+		logger -s -p user."$log_tgt" -t "$app.$proc" --id="$widget_pid" -- "$message"
+	fi
 }
 
 echo_log() { 
@@ -612,7 +632,7 @@ temporal_color() {
     local log_message="$2"
 
     if [[ $time_diff -le $recent_period ]]; then
-        [[ "$log_message" == *"$debug_trigger"* ]] && echo "$debug_color" || echo "$recent_color"
+        [[ "$log_message" == *"$debug_app"* ]] && echo "$debug_color" || echo "$recent_color"
     elif [[ $time_diff -le $aging_period ]]; then
         echo "$aging_color"
     else
@@ -683,6 +703,30 @@ script_complete() {
 	dbg_log "$debug_sever" "==================================================="
 }
 
+get_pid_chain() {
+    local pid="$1"
+    local pid_chain="$pid"
+
+    while [[ "$pid" -ne 1 ]]; do
+        pid=$(ps -o ppid= -p "$pid" | awk '{print $1}')
+        pid_chain="$pid:$pid_chain"
+    done
+
+    echo "$pid_chain"
+}
+
+get_pid_chain_rev() {
+    local pid="$1"
+    local pid_chain="$pid"
+
+    while [[ "$pid" -ne 1 ]]; do
+        pid=$(ps -o ppid= -p "$pid" | awk '{print $1}')
+        pid_chain="$pid_chain:$pid"
+    done
+
+    echo "$pid_chain"
+}
+
 ##################################################################################################
 
 # --- Startup ---
@@ -690,12 +734,13 @@ current_time_ms=$(date +%s%3N)
 current_time=$(date +%s)
 spinner=$(get_next_spinner)
 
-current_pid=$$
+current_pid=$$  # Capture the current script's PID
 parent_pid=$(ps -o ppid= -p "$current_pid" | awk '{print $1}')
-#caller_pid=$(ps -ef | grep 'Syslog Panel' | grep -v grep | awk -v ppid="$parent_pid" '$2 == ppid {print $2}')
-caller_pid=$(ps -ef | grep 'Syslog Panel' | grep -v grep | awk -v ppid="$parent_pid" '$2 == ppid {print $2}')
+widget_pid=$(ps -o ppid= -p "$parent_pid" | awk '{print $1}')
 
-#0g "$debug_sever" "current_pid: $current_pid  |  parent_pid: $parent_pid  |  caller_pid: $caller_pid"
+# Get the full PID chain
+#pid_chain=$(get_pid_chain "$current_pid")
+pid_chain=$(get_pid_chain_rev "$current_pid")
 
 # Get CLI arguments (they are all Optional)
 enable_debug="${1:-0}"		 	# 0=disabled (default) any other value to enable
@@ -800,7 +845,7 @@ if [[ -f "$last_run_file" ]]; then
         # Too soon - output previously cached content
         if [[ -f "$content_cache_file" ]]; then
             cached_payload=$(<"$content_cache_file")
-			spinner="⁂"			# ⁂ to visually denote cached log displayed (that char is a tri-snowflake if it doesn't render)
+			spinner="$cache_spinner"
 			echo "$spinner_decor$spinner\${font} $display_header"
 			echo "$cached_payload"
 			dbg_echo_log_attn "$debug_sever" "Log rate limit exceeded - cache_hit"
@@ -868,7 +913,7 @@ syslog_processing_vitals=$(<"$proc_vitals_file")
 last_dur=$(<"$last_dur_file")
 last_dur_trimmed=$(printf "%.1f%s\n" $(echo "$last_dur"))
 
-display_header+=" [$last_dur_trimmed: $syslog_processing_vitals] (\${uptime}):"	# uptime is a conky function, iirc.
+display_header+=" [$last_dur_trimmed: $syslog_processing_vitals] [pid: $widget_pid] (\${uptime}):"	# uptime is a conky function, iirc.
 
 # anything else.?.
 display_header+="\n"
