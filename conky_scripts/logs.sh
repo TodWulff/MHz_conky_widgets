@@ -126,6 +126,12 @@
 #		entries are programmatically made.
 #
 #.........................................................................................
+# 5137_1430		 TAW	16May25	code/implementation refinement -  Released:  via github
+#
+#	✓ Completed implementing a more expressive presentation of the display header.  Still
+#		need to migrate the header presentation over to the cached presentation.
+#
+#.........................................................................................
 #.........................................................................................
 # To Dos:
 #	- implement emission of the conky panel PID embedded into the PID of the shell - this will
@@ -225,8 +231,10 @@ highlight_colors=("$col_cyan" "$col_green" "$col_yellow" "$col_red")
 #("🌑" "🌒" "🌓" "🌔" "🌕" "🌖" "🌗" "🌘")	# ccw moon
 #("🌔" "🌓" "🌒" "🌑" "🌘" "🌗" "🌖" "🌕")	# cw moon
 
+spinner_voffset=23
 spinner_chars=("🌔" "🌓" "🌒" "🌑" "🌘" "🌗" "🌖" "🌕")
-spinner_decor="\${font Common:size=18}\${color6}"
+spinner_decor="\${font Common:size=18}\${color6}\${voffset $spinner_voffset}"
+spinner_undecor="\${voffset -$spinner_voffset}\${font Common:size=13} \${font}"
 cache_spinner="⁂" # ⁂ to visually denote cached log displayed (char is a tri-snowflake if it doesn't render)
 
 syslog_processing_vitals="Fetch/Include/Exclude/Prune/Format"
@@ -807,9 +815,15 @@ filter_display=""
 
 if [[ ${#include_filters[@]} -gt 0 ]]; then
     IFS=', '
-    filter_display+="\${$col_cyan}Include: \${$col_yellow}${include_filters[*]}\${$col_orange} | "
+    filter_display+="\${$col_cyan}Include: \${$col_yellow}${include_filters[*]}"
     unset IFS
 fi
+
+if [[ ${#include_filters[@]} -gt 0 ]]; then
+	if [[ ${#exclude_filters[@]} -gt 0 ]]; then
+		filter_display+="\${$col_orange} | "
+	fi
+fi 
 
 if [[ ${#exclude_filters[@]} -gt 0 ]]; then
     IFS=', '
@@ -818,18 +832,18 @@ if [[ ${#exclude_filters[@]} -gt 0 ]]; then
 fi
 
 # Trim trailing space on filter_display (part of header line and wrapped in parens so cleanliness is godliness)
-filter_display=$(echo "$filter_display" | sed 's/ *$//')
+#filter_display=$(echo "$filter_display" | sed 's/ *$//')
 
 ##################################################################################################
 
 # --- Build Output Header ---
 severity_string=$(select_severity "$tgt_log_sev_no")
-cache_source="SYSLOG"
+cache_source="\${font DejaVu Sans Mono:size=12:style=Bold}SYSLOG\${font}"
 display_header=""
 
 display_header+="\${$col_orange}$cache_source\${$col_orange} "
 display_header+="entries ≥ \${$col_cyan}$severity_string \${$col_orange}(\${$col_white}Recent, \${$col_ltgray}Aging, \${$col_dkgray}Aged\${$col_orange})"
-[[ -n "$filter_display" ]] && display_header+=" [\${$col_cyan}$filter_display\${$col_orange}]"
+[[ -n "$filter_display" ]] && display_header+="\n   \${font}\${$col_orange}[$filter_display\${$col_orange}]"
 
 ##################################################################################################
 
@@ -846,7 +860,7 @@ if [[ -f "$last_run_file" ]]; then
         if [[ -f "$content_cache_file" ]]; then
             cached_payload=$(<"$content_cache_file")
 			spinner="$cache_spinner"
-			echo "$spinner_decor$spinner\${font} $display_header"
+			echo "$spinner_decor$spinner$spinner_undecor$display_header"
 			echo "$cached_payload"
 			dbg_echo_log_attn "$debug_sever" "Log rate limit exceeded - cache_hit"
 			script_complete
@@ -913,14 +927,14 @@ syslog_processing_vitals=$(<"$proc_vitals_file")
 last_dur=$(<"$last_dur_file")
 last_dur_trimmed=$(printf "%.1f%s\n" $(echo "$last_dur"))
 
-display_header+=" [$last_dur_trimmed: $syslog_processing_vitals] [pid: $widget_pid] (\${uptime}):"	# uptime is a conky function, iirc.
+display_header+="\n   \${font}\${$col_orange}[Up: \${$col_ltgray}\${uptime}\${$col_orange}] [$last_dur_trimmed: $syslog_processing_vitals ($max_entry_width"x"$max_entry_count|$temporal_seconds"s")] [pid: $widget_pid]:"	# uptime is a conky function, iirc.
 
 # anything else.?.
 display_header+="\n"
 
 # Handle no logs case
 if [[ -z "$all_logs" ]]; then
-	echo -e "$spinner_decor$spinner\${font} $display_header$cache_content\n" #had \n
+	echo -e "$spinner_decor$spinner$spinner_undecor$display_header$cache_content\n" #had \n
     echo "\${$col_dkgray}No logs available matching criteria"
 	dbg_echo_log "$debug_sever No matching criteria."
 	script_complete
@@ -936,14 +950,9 @@ cache_content=""
 # --- Build Output Content ---
 # loop through logs and build the balance of the display content.
 
-#while IFS='|' read -r epoch source formatted_time source_machine log_message; do
-#    time_diff=$((current_time - epoch))
-	
-	
 while IFS='|' read -r log_epoch ms_hash source formatted_time source_machine log_message; do
     time_diff=$((current_time - log_epoch))
-	
-	
+
     tenure_color=$(temporal_color "$time_diff" "$log_message")
     
     # Trim and mark with tooltip if needed
@@ -996,7 +1005,7 @@ echo -e "$cache_content" > "$tmp_cache_file"
 mv -f "$tmp_cache_file" "$content_cache_file"
 
 # --- Output ---  w/ decoration & spinner
-echo -e "$spinner_decor$spinner\${font} $display_header$cache_content"
+echo -e "$spinner_decor$spinner$spinner_undecor$display_header$cache_content"
 
 # --- End Logging ---
 script_complete
