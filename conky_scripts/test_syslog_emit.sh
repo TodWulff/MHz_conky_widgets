@@ -17,3 +17,4 @@ logger -s -t "test" -p user.info   "   Test info message"	; sleep $subdly
 logger -s -t "test" -p user.debug   "  Test debug message"	; sleep $delay
 logger -s -t "test" -p user.debug   "  ===================="	; sleep $delay
 logger -s -t "test" -p user.debug " "				#; sleep $delay
+

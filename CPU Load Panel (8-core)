@@ -59,14 +59,14 @@ conky.config = {
 	-- I coded the temp histograph to reflect temps from 60-80°C presenting as 1-100, with bounds limits to prevent graph from dropping a temp with a blank line.
 };
 
-conky.text = [[${font Ubuntu:size=10}
-${color2}CPU Load  ${color0}${cpu cpu0}%$alignr${color2}${cpubar cpu0 12,320}${color0}
+conky.text = [[${font Ubuntu:size=12:style=bold}
+${color2}CPU Load  ${color0}${cpu cpu0}%$alignr${color2}${cpubar cpu0 12,300}${color0}
 ${color2}${cpugraph cpu0 30,420 00ff00 ff0000 -t}
 ${voffset -15}${cpugraph cpu1 25,105 00ff00 ff0000 -t}${cpugraph cpu2 25,105 00ff00 ff0000 -t}${cpugraph cpu3 25,105 00ff00 ff0000 -t}${cpugraph cpu4 25,105 00ff00 ff0000 -t}
 ${voffset -15}${cpugraph cpu5 25,105 00ff00 ff0000 -t}${cpugraph cpu6 25,105 00ff00 ff0000 -t}${cpugraph cpu7 25,105 00ff00 ff0000 -t}${cpugraph cpu8 25,105 00ff00 ff0000 -t}
 ${color2}${font Ubuntu:size=10}${voffset -60}${color2}${goto 10}1 ${goto 110} 2 ${goto 210}   3 ${goto 0} ${goto 310}     4 ${voffset 26}${goto 10}5 ${goto 110} 6 ${goto 210}   7 ${goto 310}     8
 ${font Ubuntu:size=8}${voffset -41}${color2}${goto 58}${freq_g (1)}GHz ${goto 158}${freq_g (2)}GHz ${goto 258}${freq_g (3)}GHz ${goto 0} ${goto 358}${freq_g (4)}GHz ${voffset 24}${goto 58}${freq_g (5)}GHz ${goto 158}${freq_g (6)}GHz ${goto 258}${freq_g (7)}GHz ${goto 358}${freq_g (8)}GHz${font}${color}${voffset 0}${font Ubuntu:size=10}
-${voffset 5}${color2}CPU Core Temps: ${color gray}${alignr}${exec sensors | grep 'Core 0' | awk '{print $3}' | cut -c1-5} °C       ${exec sensors | grep 'Core 1' | awk '{print $3}' | cut -c1-5} °C       ${exec sensors | grep 'Core 2' | awk '{print $3}' | cut -c1-5} °C       ${exec sensors | grep 'Core 3' | awk '{print $3}' | cut -c1-5} °C
+${font Ubuntu:size=12:style=bold}${voffset 10}${color2}CPU Core Temps: ${color gray}${alignr}${exec sensors | grep 'Core 0' | awk '{print $3}' | cut -c1-5} °C   ${exec sensors | grep 'Core 1' | awk '{print $3}' | cut -c1-5} °C   ${exec sensors | grep 'Core 2' | awk '{print $3}' | cut -c1-5} °C   ${exec sensors | grep 'Core 3' | awk '{print $3}' | cut -c1-5} °C
 ]];
 
 

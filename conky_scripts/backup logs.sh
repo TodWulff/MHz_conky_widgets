@@ -96,33 +96,68 @@
 #		 first to filter out desired log entries and then any excludes are applied thereon
 #
 #.........................................................................................
-# 5132_1930		 TAW	12May25	code/implementation refinement -  Released:  via github
+# 5135_1830		 TAW	15May25	code/implementation refinement -  Released:  via github
 #
 #	✓ modified date/time presentation format to show MM-DD HH:MM:SS.mmm (removed year, added milliseconds)
 #	✓ improved temporal sorting with millisecond precision to ensure stable ordering of entries
+#	✓ added vitals postpended onto header string with time and log message counts
+#		... [last_dur; TemporalFetchCount/CountPostInclude/CountPostExclude/CountPostPruneFormat]
+#	✓ added temporal duration data to header, and uptime
+#	✓ added more 'expressive/elaborate' spinner (rotating moon phase) prepended onto display header
+#	✓ cleaned up presentation of display header from a colors perspective
+#		syslog no longer highlighted as journal processing entirely removed
+#	✓ implemented programmatic disablement of debug files when running debug but not worrying
+#		about the fetching or filtering.#
+#	✓ started implementation of PID enumeration in self logging - more work to do there
+#	
+#.........................................................................................
+# 5135_1900		 TAW	15May25	code/implementation refinement -  Released:  via github
+#
+#	✓ implemented fix for bug introduced with date/time presentation formatting - temporal
+#		highlighting for aging and aged log entries became borked.  Copilot is my friend.
+#
+#.........................................................................................
+# 5136_1200		 TAW	16May25	code/implementation refinement -  Released:  via github
+#
+#	✓ Completed implementing a more expressive presentation of PID dynamics - normal ops,
+#		PID of hostconky widget is presented in header bar and any log entries made 
+#		(--id=blah logger param).  When in debug mode, this script's PID is presented 
+#		(-i logger param and the PID chain is part of the log message when organic log
+#		entries are programmatically made.
+#
+#.........................................................................................
+# 5137_1430		 TAW	17May25	code/implementation refinement -  Released:  via github
+#
+#	✓ Completed implementing a more expressive presentation of the display header.  Still
+#		need to migrate the header presentation over to the cached presentation.
 #
 #.........................................................................................
 #.........................................................................................
 # To Dos:
-#	- implement aural warnings on a threshold level (i.e. alert, critical, emerg/panic)
-#	- implement programmatic disablement of debug files when running debug but not worrying about the fetching
-#		or filtering.
+#	- implement emission of the conky panel PID embedded into the PID of the shell - this will
+#		impute that the -i logger option is redacted and customized - the goal is to have not 
+#		only the PID of the spawned shell, but also the PID of the parent conky instance
+#	- considerimplementing aural warnings on a threshold level (i.e. alert, critical, emerg/panic)
 #	- consider supporting passing severity names vs. (magic) numbers?
 #	- looks like conky is calling the script at a 20ms rate (50x per sec) on this box/system .?.  that seems wrong?
 #	- fix mia header when the tool is starved of content
 #	- see about the intermitted space between the header and body
-#	- adapt coloring to respect the dimming with age concept (3 levels for each:  'fields', cyan, green, yellow, red
-#		so conky's keywords only support colorX where X is 0-9 inclusive, and all are used in current highlighting
-#		and log decorations
+#	- adapt coloring to respect the dimming with age concept (3 levels for each:  'fields',
+#		cyan, green, yellow, red 
+#		- so conky's keywords only support colorX where X is 0-9 inclusive, and all are used
+#		in current highlighting and log decorations - hmm
 #	- fix the dynamic warn/warning highlights - may need to look at error/err & emerg/panic too
 #		yeah, this is a nag only - depending on the script behavior and regex and automatic list sorting?, 
 #		for terms with dual keywords/names (emer/panic, warn/warning, err/error, the 'logic' i've crafted is borked
-#	- consider sudo and getting nice escalations in place - needed ISO programmatic control/adj call's 'nice' factor ;)
-#	- consider a rules implementation approach - dunno where my gray matter was when I drafted this note and WTF it means
-#	- can widget text be made to be selectable
-#	- can the widget be made into a window
-#	- can widget have event support - click on header severity to popup and select different severities ... exclude ... include ...
-#	- add duration data to header
+#	- consider sudo and getting 'nice' escalations in place - needed ISO programmatic control/
+#		adj call's 'nice' factor ;)
+#	- consider a rules implementation approach - dunno where my gray matter was when I
+#		drafted this note and WTF it means <cage eyes hard here>
+#	- can widget text be made to be selectable (would like to be able to copy from the widget
+#		in support of searching or other use, before it scrolls off the top of the display
+#	- can the widget be made into a window (similar context here...)
+#	- can widget have event support - click on header severity to popup and select different
+#		severities ... exclude ... include ...
 #	- add hotspot on click on duration to change it
 #	- consider collections separate from display for logs (see cpu power polling/calculation | formatting/reporting)
 #	- on save, evaluate impact of blocking wait on fs save
@@ -148,30 +183,35 @@
 ##################################################################################################
 
 # --- Configuration ---
-enable_debug="1"		# <- ultimately passed as a parameter, but may want one emission at app start.?.
-debug_app="Conky"
-debug_trigger="$debug_app"
+enable_debug="1"				# 0 = disable, !0 = enable <- ultimately passed as a parameter, but may want one emission at app start.?.
+enable_fetch_filter_debug="0"	# 0 = disable, !0 = enable
+
+app="Conky_Widget"
+proc="Syslog_Panel"
+
+debug_app="Syslog_Panel"
 debug_proc="logs.sh"
-mark_period=0
 
-tgt_log_sev_no="7"	# <- ultimately passed as a parameter, but setting early, in case it's needed
+mark_period=0					# in seconds
 
-mark_sever="6"		# severity used for the periodic -- MARK -- logs, if so enabled in the parameters
-debug_sever="7"		# this is the severity used for debug logging
-error_sever="3"		# this is the severity used for sript error logs
+tgt_log_sev_no="7"				# <- ultimately passed as a parameter, but setting early, in case it's needed
+
+mark_sever="6"					# severity used for the periodic -- MARK -- logs, if so enabled in the parameters
+debug_sever="7"					# this is the severity used for debug logging
+error_sever="3"					# this is the severity used for sript error logs
 
 syslog_format="short-unix"
 
 recent_period=60
 aging_period=120
-rate_limit_period=1000	# mS
+rate_limit_period=1000			# mS
 
 # color defs for reading ease - COLOR HEX CODES ARE DEFINED IN THE VARS SECTION OF THE WIDGET
 # taking this approach to minimize the text length of the decorations to help minimize buffer overruns
 col_white="color0"
 col_ltgray="color1"
 col_dkgray="color2"
-col_purple="color3"
+#col_blah="color3"
 col_cyan="color4"
 col_green="color5"
 col_yellow="color6"
@@ -183,22 +223,31 @@ recent_color="$col_white"
 aging_color="$col_ltgray"
 aged_color="$col_dkgray"
 debug_color="$col_white"
-keyword_color="$col_purple"
+#blah_color="$col_blah"
 trim_ind_color="$col_magenta"
 highlight_colors=("$col_cyan" "$col_green" "$col_yellow" "$col_red")
 
-header_decor="\${$col_purple}"
+#("―" "\\" "|" "/")							# rotating chars
+#("🌑" "🌒" "🌓" "🌔" "🌕" "🌖" "🌗" "🌘")	# ccw moon
+#("🌔" "🌓" "🌒" "🌑" "🌘" "🌗" "🌖" "🌕")	# cw moon
+
+spinner_voffset=23
+spinner_chars=("🌔" "🌓" "🌒" "🌑" "🌘" "🌗" "🌖" "🌕")
+spinner_decor="\${font Common:size=18}\${color6}\${voffset $spinner_voffset}"
+spinner_undecor="\${voffset -$spinner_voffset}\${font Common:size=13} \${font}"
+cache_spinner="⁂" # ⁂ to visually denote cached log displayed (char is a tri-snowflake if it doesn't render)
 
 syslog_processing_vitals="Fetch/Include/Exclude/Prune/Format"
 proc_vitals_file="/home/todwulff/tmp/syslog_vitals_tmp"
 
 severity_levels=("EMERGENCY" "ALERT" "CRITICAL" "ERROR" "WARNING" "NOTICE" "INFO" "DEBUG")	# for visual purposes
-severity_names=("emerg" "alert" "crit" "err" "warning" "notice" "info" "debug")				# for programmatic purposes
+severity_names=("emerg" "alert" "crit" "error" "warning" "notice" "info" "debug")				# for programmatic purposes
 
 content_cache_file="/home/todwulff/tmp/conky_logs_cache"
 tmp_cache_file="${content_cache_file}.tmp.$$"
 
 last_run_file="/home/todwulff/tmp/conky_logs_last_run"
+last_dur_file="/home/todwulff/tmp/conky_logs_last_dur"
 last_mark_file="/home/todwulff/tmp/conky_logs_last_mark"
 spinner_state_file="/home/todwulff/tmp/conky_logs_spinner_state"
 
@@ -211,8 +260,6 @@ dbg_pruned_syslog_file="/home/todwulff/tmp/dbg_pruned_syslog"
 dbg_logs_presort_file="/home/todwulff/tmp/dbg_logs_presort"
 dbg_logs_sorted_file="/home/todwulff/tmp/dbg_logs_sorted"
 dbg_logs_pruned_file="/home/todwulff/tmp/dbg_logs_pruned"
-
-spinner_chars=("―" "\\" "|" "/")
 
 # array for log fetch methods - now only containing syslog
 log_fetchers=(
@@ -239,7 +286,13 @@ log() {
 	shift
 	local message=("$@")
 	local log_tgt=$(get_log_name "$sever_no")
-	logger -s -p user."$log_tgt" -t "$debug_app.$debug_proc" -- "$message"
+    if [[ "$enable_debug" != "0" ]]; then
+		# provide granular log entries [includes PID chain up to init] also echos to standard error as well as the log
+		logger -s -p user."$log_tgt" -t "$debug_app.$debug_proc" -i -- "[$pid_chain] $message"	
+	else
+		# provides high-level log entries [PID referenced to the parent widget's PID]
+		logger -p user."$log_tgt" -t "$app.$proc" --id="$widget_pid" -- "$message"
+	fi
 }
 
 echo_log() { 
@@ -335,8 +388,7 @@ get_next_spinner() {
     echo "${spinner_chars[$index]}"
 }
 
-# Generate millisecond hash based on log line content
-generate_ms_hash() {
+generate_ms_hash() {	# Generate millisecond hash based on log line content
     local log_line="$1"
     local log_epoch="$2"
     
@@ -451,7 +503,7 @@ fetch_syslog() {
     fi
 	
 	#save temporal Syslog fetch
-	if [[ "$enable_debug" != "0" ]]; then
+	if [[ "$enable_debug" != "0" && "$enable_fetch_filter_debug" != "0" ]]; then
 		echo -e "$temporal_fetch" > "$dbg_temporal_syslog_file"
 	fi
 
@@ -473,7 +525,7 @@ fetch_syslog() {
     fi
 
 	#save the temporal+include syslog
-	if [[ "$enable_debug" != "0" ]]; then
+	if [[ "$enable_debug" != "0" && "$enable_fetch_filter_debug" != "0" ]]; then
 		echo -e "$include_results" > "$dbg_include_syslog_file"
 	fi
 	
@@ -494,7 +546,7 @@ fetch_syslog() {
    fi
 	
 	#save the temporal+include+exclude syslog
-	if [[ "$enable_debug" != "0" ]]; then
+	if [[ "$enable_debug" != "0" && "$enable_fetch_filter_debug" != "0" ]]; then
 		echo -e "$exclude_results" > "$dbg_exclude_syslog_file"
 	fi
 	
@@ -508,7 +560,7 @@ fetch_syslog() {
     local pruned_output
     pruned_output=$(echo "$exclude_results" | tail -n "$fetch_entry_count")
 	
-	if [[ "$enable_debug" != "0" ]]; then
+	if [[ "$enable_debug" != "0" && "$enable_fetch_filter_debug" != "0" ]]; then
 		echo -e "$pruned_output" > "$dbg_pruned_syslog_file"
 	fi
 	
@@ -550,21 +602,25 @@ fetch_syslog() {
         log_message=$(cut -d' ' -f6- <<< "$line")
 
         # Format the output line - use epoch+ms for precise sorting
-        output_epoch="${log_epoch}${ms_hash}"  # Append ms to epoch for precise sorting
-        output_line="${output_epoch}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
+#        output_epoch="${log_epoch}${ms_hash}"  # Append ms to epoch for precise sorting
+#        output_line="${output_epoch}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
+		output_line="${log_epoch}|${ms_hash}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
+
         format_output+="$output_line\n"
     done <<< "$pruned_output"
 
 	#save temporal+include+exclude+format syslog fetch
-	if [[ "$enable_debug" != "0" ]]; then
+	if [[ "$enable_debug" != "0" && "$enable_fetch_filter_debug" != "0" ]]; then
 		echo -e "$format_output" > "$dbg_format_syslog_file"
 	fi
 	
     format_line_count=$(echo -e "$format_output" | wc -l | awk '{print $1}')
-	dbg_log "$debug_sever" "format: $format_line_count line(s) after formatting"
-	
-	syslog_processing_vitals+="/$format_line_count"
+#	dbg_log "$debug_sever" "format: $format_line_count line(s) after formatting"
+	dbg_log "$debug_sever" "format: $(($format_line_count - 1)) line(s) after formatting"    # off by one somewhere...
+
 	##################################################################################################
+
+	# get last runtime and prepend onto the vitals
 
     # write the value to a temp file (this proc gets spawned in a subshell...)
     echo "$syslog_processing_vitals" > "$proc_vitals_file"
@@ -584,7 +640,7 @@ temporal_color() {
     local log_message="$2"
 
     if [[ $time_diff -le $recent_period ]]; then
-        [[ "$log_message" == *"$debug_trigger"* ]] && echo "$debug_color" || echo "$recent_color"
+        [[ "$log_message" == *"$debug_app"* ]] && echo "$debug_color" || echo "$recent_color"
     elif [[ $time_diff -le $aging_period ]]; then
         echo "$aging_color"
     else
@@ -648,7 +704,35 @@ script_complete() {
 	end_nanotime=$(date +%s%N)
 	dur_nanotime=$(calculate_time_difference_ns "$start_nanotime" "$end_nanotime")
 	dbg_log "$debug_sever" "Finished: $end_nanotime - Took: $dur_nanotime"
+	
+	#save duration to last duration file here
+	echo "$dur_nanotime" > "$last_dur_file"
+	
 	dbg_log "$debug_sever" "==================================================="
+}
+
+get_pid_chain() {
+    local pid="$1"
+    local pid_chain="$pid"
+
+    while [[ "$pid" -ne 1 ]]; do
+        pid=$(ps -o ppid= -p "$pid" | awk '{print $1}')
+        pid_chain="$pid:$pid_chain"
+    done
+
+    echo "$pid_chain"
+}
+
+get_pid_chain_rev() {
+    local pid="$1"
+    local pid_chain="$pid"
+
+    while [[ "$pid" -ne 1 ]]; do
+        pid=$(ps -o ppid= -p "$pid" | awk '{print $1}')
+        pid_chain="$pid_chain:$pid"
+    done
+
+    echo "$pid_chain"
 }
 
 ##################################################################################################
@@ -657,6 +741,14 @@ script_complete() {
 current_time_ms=$(date +%s%3N)
 current_time=$(date +%s)
 spinner=$(get_next_spinner)
+
+current_pid=$$  # Capture the current script's PID
+parent_pid=$(ps -o ppid= -p "$current_pid" | awk '{print $1}')
+widget_pid=$(ps -o ppid= -p "$parent_pid" | awk '{print $1}')
+
+# Get the full PID chain
+#pid_chain=$(get_pid_chain "$current_pid")
+pid_chain=$(get_pid_chain_rev "$current_pid")
 
 # Get CLI arguments (they are all Optional)
 enable_debug="${1:-0}"		 	# 0=disabled (default) any other value to enable
@@ -723,9 +815,15 @@ filter_display=""
 
 if [[ ${#include_filters[@]} -gt 0 ]]; then
     IFS=', '
-    filter_display+="\${$col_cyan}Include: \${$col_yellow}${include_filters[*]}\${$col_orange} | "
+    filter_display+="\${$col_cyan}Include: \${$col_yellow}${include_filters[*]}"
     unset IFS
 fi
+
+if [[ ${#include_filters[@]} -gt 0 ]]; then
+	if [[ ${#exclude_filters[@]} -gt 0 ]]; then
+		filter_display+="\${$col_orange} | "
+	fi
+fi 
 
 if [[ ${#exclude_filters[@]} -gt 0 ]]; then
     IFS=', '
@@ -734,18 +832,18 @@ if [[ ${#exclude_filters[@]} -gt 0 ]]; then
 fi
 
 # Trim trailing space on filter_display (part of header line and wrapped in parens so cleanliness is godliness)
-filter_display=$(echo "$filter_display" | sed 's/ *$//')
+#filter_display=$(echo "$filter_display" | sed 's/ *$//')
 
 ##################################################################################################
 
 # --- Build Output Header ---
 severity_string=$(select_severity "$tgt_log_sev_no")
-cache_source="SYSLOG"
+cache_source="\${font DejaVu Sans Mono:size=12:style=Bold}SYSLOG\${font}"
 display_header=""
 
-display_header+="\${$keyword_color}$cache_source\${$col_orange} "
-display_header+="entries ≥ \${$keyword_color}$severity_string \${$col_orange}(\${$col_white}Recent, \${$col_ltgray}Aging, \${$col_dkgray}Aged\${$col_orange})"
-[[ -n "$filter_display" ]] && display_header+=" [\${$keyword_color}$filter_display\${$col_orange}]"
+display_header+="\${$col_orange}$cache_source\${$col_orange} "
+display_header+="entries ≥ \${$col_cyan}$severity_string \${$col_orange}(\${$col_white}Recent, \${$col_ltgray}Aging, \${$col_dkgray}Aged\${$col_orange})"
+[[ -n "$filter_display" ]] && display_header+="\n   \${font}\${$col_orange}[$filter_display\${$col_orange}]"
 
 ##################################################################################################
 
@@ -761,8 +859,9 @@ if [[ -f "$last_run_file" ]]; then
         # Too soon - output previously cached content
         if [[ -f "$content_cache_file" ]]; then
             cached_payload=$(<"$content_cache_file")
-			spinner="░"			# ░ to visually denote cached log displayed
-			echo "$header_decor$spinner $display_header$cached_payload"
+			spinner="$cache_spinner"
+			echo "$spinner_decor$spinner$spinner_undecor$display_header"
+			echo "$cached_payload"
 			dbg_echo_log_attn "$debug_sever" "Log rate limit exceeded - cache_hit"
 			script_complete
 			exit 0
@@ -823,14 +922,19 @@ all_logs=$(fetch_syslog | sort -n -t'|' -k1 | tail -n "$max_entry_count")
 # vitals' variable contents via file (fetch_syslog saves the var to the file)
 syslog_processing_vitals=$(<"$proc_vitals_file")
 
+
 # append the proc vitals onto header line
-display_header+=" [$syslog_processing_vitals]:"
+last_dur=$(<"$last_dur_file")
+last_dur_trimmed=$(printf "%.1f%s\n" $(echo "$last_dur"))
+
+display_header+="\n   \${font}\${$col_orange}[Up: \${$col_ltgray}\${uptime}\${$col_orange}] [$last_dur_trimmed: $syslog_processing_vitals ($max_entry_width"x"$max_entry_count|$temporal_seconds"s")] [pid: $widget_pid]:"	# uptime is a conky function, iirc.
+
 # anything else.?.
 display_header+="\n"
 
 # Handle no logs case
 if [[ -z "$all_logs" ]]; then
-	echo -e "$header_decor$spinner $display_header$cache_content\n" #had \n
+	echo -e "$spinner_decor$spinner$spinner_undecor$display_header$cache_content\n" #had \n
     echo "\${$col_dkgray}No logs available matching criteria"
 	dbg_echo_log "$debug_sever No matching criteria."
 	script_complete
@@ -846,8 +950,9 @@ cache_content=""
 # --- Build Output Content ---
 # loop through logs and build the balance of the display content.
 
-while IFS='|' read -r epoch source formatted_time source_machine log_message; do
-    time_diff=$((current_time - epoch))
+while IFS='|' read -r log_epoch ms_hash source formatted_time source_machine log_message; do
+    time_diff=$((current_time - log_epoch))
+
     tenure_color=$(temporal_color "$time_diff" "$log_message")
     
     # Trim and mark with tooltip if needed
@@ -860,9 +965,7 @@ while IFS='|' read -r epoch source formatted_time source_machine log_message; do
 
     # Highlight keyword inside log message if filtering is active
     if [[ -n "$keyword_filter" ]]; then
-	
-        #formatted_line=$(sed "s/\($keyword_filter\)/\${color3}\1\${$tenure_color}/Ig" <<< "$formatted_line")
-        formatted_line=$(sed "s/\($keyword_filter\)/\${$col_purple}\1\${$tenure_color}/Ig" <<< "$formatted_line")
+	    formatted_line=$(sed "s/\($keyword_filter\)/\${$col_orange}\1\${$tenure_color}/Ig" <<< "$formatted_line")
     fi
 	
 	# Apply all highlight groups
@@ -895,14 +998,14 @@ sorted_logs="$cache_content"
 cache_content=$(echo -e "$sorted_logs" | tail -n "$fetch_entry_count")
 
 line_count=$(wc -l <<< "${cache_content}")
-dbg_log "$debug_sever" "Syslog output to be displayed: $line_count line(s)"
+dbg_log "$debug_sever" "Syslog output to be displayed: $(($line_count + 1)) line(s)"  # off by one somewhere...
 
 # Save the newly built cache_content to FS cache atomically
 echo -e "$cache_content" > "$tmp_cache_file"
 mv -f "$tmp_cache_file" "$content_cache_file"
 
 # --- Output ---  w/ decoration & spinner
-echo -e "$header_decor$spinner $display_header$cache_content"
+echo -e "$spinner_decor$spinner$spinner_undecor$display_header$cache_content"
 
 # --- End Logging ---
 script_complete

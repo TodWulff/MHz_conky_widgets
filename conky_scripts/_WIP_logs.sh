@@ -132,19 +132,14 @@
 #		need to migrate the header presentation over to the cached presentation.
 #
 #.........................................................................................
-# 5140_1730		 TAW	20May25	code/implementation refinement -  Released:  via github
+# 5138_1430		 TAW	17May25	code/implementation refinement -  Released:  via github
 #
-#	✓ Implemented highlighting on terms that exist in the Sourch Machine portion of each 
-#		message - works well.  Now...  This was fixing a bug that developed when implementing
-#		the multiple term highlighting construct.  Did realize I broke that until adding
-#		another logger source (my new nas) as wasn't able to appoly decorations to same. 
+#	✓ Completed commenting of procs and variables to enable easier understanding of logic
+#	✓ 
 #
 #.........................................................................................
 #.........................................................................................
 # To Dos:
-#	- Still need to fix the header presentation when there is a cache hit.  Waffling on the
-#		best or easiest impementation, and if I should just consideer adding the header to
-#		the cached content.  BUT I am requiring retention of the spinner.  hmm.  wtd.?.
 #	- implement emission of the conky panel PID embedded into the PID of the shell - this will
 #		impute that the -i logger option is redacted and customized - the goal is to have not 
 #		only the PID of the spawned shell, but also the PID of the parent conky instance
@@ -187,38 +182,40 @@
 #				8) hilt_green_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
 #				9) hilt_yellow_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
 #				10) hilt_red_list - Optional "comma,separated,values" list of keywords to decorate a specifc term to a specific color
-#				11) recent_period - Optional int period in Seconds for 'Fresh' decorations to be applied = 
+#				11) fresh_period - Optional int period in Seconds for 'Fresh' decorations to be applied = 
 #				12) aging_period - Optional int period in Seconds for 'Aging' decorations to be applied
 #				13) temporal fetch - Optional int period in Seconds for pulling in pre-filtered syslog entries
 
 ##################################################################################################
 
 # --- Configuration ---
-enable_debug="1"				# 0 = disable, !0 = enable <- ultimately passed as a parameter, but may want one emission at app start.?.
-enable_fetch_filter_debug="0"	# 0 = disable, !0 = enable
+enable_debug="1"				# parameterized - 0 = disable, !0 = enable <- ultimately passed as a parameter, but may want one emission at app start.?.
+enable_fetch_filter_debug="0"	# 0 = disable, !0 = enable <- to enable phases debug file saves
 
-app="Conky_Widget"
-proc="Syslog_Panel"
+app="Conky_Widget"				# app name used in logger in NON-DEGUB context
+proc="Syslog_Panel"				# proc name used in logger in NON_DEBUG context
 
-debug_app="Syslog_Panel"
-debug_proc="logs.sh"
+debug_app="Syslog_Panel"		# app name used in logger in DEGUB context
+debug_proc="logs.sh"    		# proc name used in logger in DEBUG context
 
-mark_period=0					# in seconds
+tgt_log_sev_no="7"				# parameterized - but setting early, in case it's needed
 
-tgt_log_sev_no="7"				# <- ultimately passed as a parameter, but setting early, in case it's needed
+mark_period=0					# parameterized - time between self-made -- MARK --, in seconds - 0 to disable
+mark_sever="6"					# severity used for the periodic -- MARK -- log msgs, if so enabled in the parameters
 
-mark_sever="6"					# severity used for the periodic -- MARK -- logs, if so enabled in the parameters
-debug_sever="7"					# this is the severity used for debug logging
+debug_sever="7"					# this is the severity used for debug self-logging
 error_sever="3"					# this is the severity used for sript error logs
 
-syslog_format="short-unix"
+syslog_format="short-unix"		# a pretty critical setting - affect temporal functionality
 
-recent_period=60
-aging_period=120
-rate_limit_period=1000			# mS
+fresh_period=60					# parameterized - used in aging of log message display - must be less than aging_period
+aging_period=120				# parameterized - used in aging of log message display - must be greater than fresh_period
+
+rate_limit_period=1000			# time in mS to force emit of cached logs when faster than this
 
 # color defs for reading ease - COLOR HEX CODES ARE DEFINED IN THE VARS SECTION OF THE WIDGET
-# taking this approach to minimize the text length of the decorations to help minimize buffer overruns
+# also taking this approach to minimize the text length of the decorations to help minimize buffer overruns
+
 col_white="color0"
 col_ltgray="color1"
 col_dkgray="color2"
@@ -234,68 +231,72 @@ recent_color="$col_white"
 aging_color="$col_ltgray"
 aged_color="$col_dkgray"
 debug_color="$col_white"
-ext_src_color="$col_cyan"
+#blah_color="$col_blah"
 trim_ind_color="$col_magenta"
-include_color="$col_cyan"
 highlight_colors=("$col_cyan" "$col_green" "$col_yellow" "$col_red")
 
+# Spinner schtuffs - to depict logger widget life - and is also icing on the cake, ya know...
 #("―" "\\" "|" "/")							# rotating chars
 #("🌑" "🌒" "🌓" "🌔" "🌕" "🌖" "🌗" "🌘")	# ccw moon
 #("🌔" "🌓" "🌒" "🌑" "🌘" "🌗" "🌖" "🌕")	# cw moon
-# working: ⁂⇱⨀☢☠☕◌◍◎◉©®⁘⁛⁙⁜
-# no work: 💀🄋🛟🧿🫣🄋🄋𝝝⿴〄⭕⦾❎⛑⌛࿗ᳵ
-spinner_voffset=23
 spinner_chars=("🌔" "🌓" "🌒" "🌑" "🌘" "🌗" "🌖" "🌕")
+cache_spinner="⁂" # ⁂ to visually denote cached log displayed (char is a tri-snowflake)
+starve_spinner="⇱" # to visually denote starvation
+
+
+
+
+spinner_voffset=23							# vercial offset of spinner
+
+# these are conky directives to enable decorating the spinner and manipulate it as desired
 spinner_decor="\${font Common:size=18}\${color6}\${voffset $spinner_voffset}"
 spinner_undecor="\${voffset -$spinner_voffset}\${font Common:size=13} \${font}"
-cache_spinner="⁂" # ⁂ to visually denote cached log displayed (char is a tri-snowflake if it doesn't render)
-starve_spinner="☢" # to visually denote starvation
 
-syslog_processing_vitals="Fetch/Include/Exclude/Prune/Format"
-proc_vitals_file="/home/todwulff/tmp/syslog_vitals_tmp"
+# for visual purposes
+severity_levels=("EMERGENCY" "ALERT" "CRITICAL" "ERROR" "WARNING" "NOTICE" "INFO" "DEBUG")
 
-severity_levels=("EMERGENCY" "ALERT" "CRITICAL" "ERROR" "WARNING" "NOTICE" "INFO" "DEBUG")	# for visual purposes
-severity_names=("emerg" "alert" "crit" "error" "warning" "notice" "info" "debug")				# for programmatic purposes
+# for programmatic purposes
+severity_names=("emerg" "alert" "crit" "error" "warning" "notice" "info" "debug")
 
-content_cache_file="/home/todwulff/tmp/conky_logs_cache"
-tmp_cache_file="${content_cache_file}.tmp.$$"
+syslog_processing_vitals="Fetch/Include/Exclude/Prune/Format"		# placeholder content
 
-last_run_file="/home/todwulff/tmp/conky_logs_last_run"
-last_dur_file="/home/todwulff/tmp/conky_logs_last_dur"
-last_mark_file="/home/todwulff/tmp/conky_logs_last_mark"
-spinner_state_file="/home/todwulff/tmp/conky_logs_spinner_state"
+tmp_cache_file="${content_cache_file}.tmp.$$"						# because: atomic cache update
 
-dbg_temporal_syslog_file="/home/todwulff/tmp/dbg_temporal_syslog"
-dbg_format_syslog_file="/home/todwulff/tmp/dbg_format_syslog"
-dbg_include_syslog_file="/home/todwulff/tmp/dbg_include_syslog"
-dbg_exclude_syslog_file="/home/todwulff/tmp/dbg_exclude_syslog"
-dbg_pruned_syslog_file="/home/todwulff/tmp/dbg_pruned_syslog"
+content_cache_file="/home/todwulff/tmp/conky_logs_cache"			# cache file
+proc_vitals_file="/home/todwulff/tmp/syslog_vitals_tmp"				# because: spawned proc
+last_run_file="/home/todwulff/tmp/conky_logs_last_run"				# var persistence across runs
+last_dur_file="/home/todwulff/tmp/conky_logs_last_dur"				# var persistence across runs
+last_mark_file="/home/todwulff/tmp/conky_logs_last_mark"			# var persistence across runs
+spinner_state_file="/home/todwulff/tmp/conky_logs_spinner_state"	# var persistence across runs
 
-dbg_logs_presort_file="/home/todwulff/tmp/dbg_logs_presort"
-dbg_logs_sorted_file="/home/todwulff/tmp/dbg_logs_sorted"
-dbg_logs_pruned_file="/home/todwulff/tmp/dbg_logs_pruned"
+dbg_temporal_syslog_file="/home/todwulff/tmp/dbg_temporal_syslog"	# for debug, if files enabled
+dbg_format_syslog_file="/home/todwulff/tmp/dbg_format_syslog"		# for debug, if files enabled
+dbg_include_syslog_file="/home/todwulff/tmp/dbg_include_syslog"		# for debug, if files enabled
+dbg_exclude_syslog_file="/home/todwulff/tmp/dbg_exclude_syslog"		# for debug, if files enabled
+dbg_pruned_syslog_file="/home/todwulff/tmp/dbg_pruned_syslog"		# for debug, if files enabled
 
-# array for log fetch methods - now only containing syslog
+# array for log fetch methods - was journal and syslog, now only syslog
+#	(must config journal to emit *.* to syslog with template as noted in fetch_syslog proc)
 log_fetchers=(
-    "fetch_syslog"                     # Index 0 / Not used (for safety)
-    "fetch_syslog"                     # 1: syslog only
+    "fetch_syslog"                     								# Index 0 / Not used (for safety)
+    "fetch_syslog"                     								# 1: syslog only
 )
 
 ##################################################################################################
 
 # --- Functions ---
 
-attention() {
+attention() {				# emits bell to console
 	printf "\a" >&2; sleep 0.1; printf "\a" >&2
 }
 
-dbg_attn() {
+dbg_attn() {				# emits bell to console if in DEBUG context
     if [[ "$enable_debug" != "0" ]]; then
 		attention
 	fi
 }
 
-log() {	
+log() {						# emits msg to logger
 	local sever_no="$1"
 	shift
 	local message=("$@")
@@ -309,39 +310,39 @@ log() {
 	fi
 }
 
-echo_log() { 
+echo_log() { 				# emits msg to console
 	local log_tgt="$1"
 	shift
 	log "$log_tgt" "$@"
 	echo "$@"
 }
 
-echo_attn() { 
+echo_attn() {				# emits msg to console and bell to console
 	echo "$@"
 	attention
 }
 
-log_attn() {
+log_attn() {				# emits msg to logger and bell to console
 	local tgt="$1"
 	shift
 	log "$tgt" "$@"
 	attention
 }
 
-echo_log_attn() {
+echo_log_attn() {			# emits msg to logger and to console with bell
 	local tgt="$1"
 	shift
 	echo "$@"
 	log_attn "$tgt" "$@"
 }
 
-dbg_echo() {
+dbg_echo() {				# emits msg to console if in DEBUG context
     if [[ "$enable_debug" != "0" ]]; then
 		echo "$@"
 	fi
 }
 								
-dbg_log() {
+dbg_log() {					# emits msg to logger if in DEBUG context
     if [[ "$enable_debug" != "0" ]]; then
 		local log_tgt="$1"
 		shift
@@ -349,7 +350,7 @@ dbg_log() {
     fi
 }
 
-dbg_echo_log() {
+dbg_echo_log() {			# emits msg to logger and console if in DEBUG context
     if [[ "$enable_debug" != "0" ]]; then
 		local log_tgt="$1"
 		shift
@@ -357,26 +358,26 @@ dbg_echo_log() {
 	fi
 }
 
-dbg_echo_attn() {
+dbg_echo_attn() {			# emits msg to console with bell if in DEBUG context
 	dbg_echo "$@"
     dbg_attn
 }
 
-dbg_log_attn() {
+dbg_log_attn() {			# emits msg to logger if in DEBUG context
 	local log_tgt="$1"
 	shift
     dbg_log "$log_tgt" "$@"
     dbg_attn
 }
 
-dbg_echo_log_attn() {
+dbg_echo_log_attn() {		# emits msg to logger and msg with bell to console if in DEBUG context
 	local log_tgt="$1"
 	shift
 	dbg_echo_log "$log_tgt" "$@"
     dbg_attn
 }
 
-get_log_name() {
+get_log_name() {			# takes sev # and returns sev name (debug, warning, ...)
     local idx="$1"
     if [[ ! "$idx" =~ ^[0-7]$ ]]; then
         echo_log_attn "$error_sever" "Error: target syslog must be an integer between 0 and 7 - got: >$idx<"
@@ -385,7 +386,7 @@ get_log_name() {
     echo "${severity_names[$idx]:-debug}"
 }
 
-get_next_spinner() {
+get_next_spinner() {		# returns a single char string based on a global rollover counter
     local index=0
     if [[ -f "$spinner_state_file" ]]; then
         index=$(<"$spinner_state_file")
@@ -402,7 +403,7 @@ get_next_spinner() {
     echo "${spinner_chars[$index]}"
 }
 
-generate_ms_hash() {	# Generate millisecond hash based on log line content
+generate_ms_hash() {		# Generate millisecond hash based on log line content
     local log_line="$1"
     local log_epoch="$2"
     
@@ -412,7 +413,7 @@ generate_ms_hash() {	# Generate millisecond hash based on log line content
     echo "$ms_value"
 }
 
-fetch_syslog() {
+fetch_syslog() {			# this is the primary worker proc here - way much is being done...
 	#
 	# ASSUMES RSYSLOGD /etc/rsyslog.d/50-default.conf TEMPLATE:
 	#	$template SyslogFormatWithSeverity,"%timegenerated% %HOSTNAME% %syslogseverity-text% %syslogtag% %msg%\n"
@@ -421,7 +422,7 @@ fetch_syslog() {
 	#	*.*				/var/log/syslog;SyslogFormatWithSeverity
 	#
 	# ASSUMES journald.conf is config'd to emit messages to rsyslogd
-	#	ForwardToSyslog=yes	#<-- uncommented in 
+	#	ForwardToSyslog=yes	#<-- uncommented in journald.conf
 	#
 	
     # Validate inputs
@@ -526,7 +527,6 @@ fetch_syslog() {
     dbg_log "$debug_sever" "temporal_fetch: $temporal_line_count entries from syslog for processing"
 	
 	syslog_processing_vitals="$temporal_line_count"
-	
 	##################################################################################################
 
     # Step 2: Include regex filter
@@ -548,7 +548,6 @@ fetch_syslog() {
 	dbg_log "$debug_sever" "include_regex: $include_line_count line(s) after include_regex"
 	
 	syslog_processing_vitals+="/$include_line_count"
-	
 	##################################################################################################
 
     # Step 3: Exclude regex filter
@@ -570,7 +569,6 @@ fetch_syslog() {
 	dbg_log "$debug_sever" "exclude_regex: $exclude_line_count line(s) after exclude_regex"
 	
 	syslog_processing_vitals+="/$exclude_line_count"
-	
 	##################################################################################################
 
     # Step 4: Limit to fetch_entry_count lines, save to debug file and report line count
@@ -585,86 +583,78 @@ fetch_syslog() {
 	dbg_log "$debug_sever" "prune: $pruned_line_count line(s) after pruning"
 	
 	syslog_processing_vitals+="/$pruned_line_count"
-	
 	##################################################################################################
 
-	# Step 5: format output for display
-	local format_output
-	local output_line
+    # Step 5: format output for display
+    local format_output
+    local output_line
 	local format_line_count
-
+	
 	format_output=""
+	
+    while IFS= read -r line; do
+        # Skip empty lines
+        [[ -z "$line" ]] && continue
 
-	while IFS= read -r line; do
-		# Skip empty lines
-		[[ -z "$line" ]] && continue
+        # Parse syslog line
+        log_time=$(awk '{print $1" "$2" "$3}' <<< "$line")
+        log_epoch=$(date -d "$log_time" +%s 2>/dev/null)
 
-		# Clean up hostname by replacing "AS6804T-NAS notice notice" with "AS6804T-NAS notice"
-		# this deals with bad behavior I can't seem to resolve any other way
-		# suspect asustor's tweaks on rsyslogd might be misbehaving...
-		# line=$(echo "$line" | sed 's/AS6804T notice/AS6804T/')
-		line=$(echo "$line" | sed 's/AS6804T notice \((\|alert\|crit\|debug\|emerg\|err\|info\|notice\|warning\|error\|warn)\) /AS6804T \1 /')
+        if [[ -z "$log_epoch" ]]; then
+            dbg_log "$debug_sever" "Skipping line with invalid log_time: $log_time"
+            continue
+        fi
 
-		# Parse syslog line
-		log_time=$(awk '{print $1" "$2" "$3}' <<< "$line")
-		log_epoch=$(date -d "$log_time" +%s 2>/dev/null)
-
-		if [[ -z "$log_epoch" ]]; then
-			dbg_log "$debug_sever" "Skipping line with invalid log_time: $log_time"
-			continue
-		fi
-
-		source_machine=$(awk '{print $4}' <<< "$line")
-		log_sev_level=$(awk '{print $5}' <<< "$line")
-		
-		# Generate milliseconds based on the log content
-		ms_hash=$(generate_ms_hash "$line" "$log_epoch")
-		
-		# Format the time without year and with added milliseconds
-		formatted_time=$(date -d "@$log_epoch" +"%m-%d %H:%M:%S").$ms_hash
-		
-		log_message=$(cut -d' ' -f6- <<< "$line")
+        source_machine=$(awk '{print $4}' <<< "$line")
+        log_sev_level=$(awk '{print $5}' <<< "$line")
+        
+        # Generate milliseconds based on the log content
+        ms_hash=$(generate_ms_hash "$line" "$log_epoch")
+        
+        # Format the time without year and with added milliseconds
+        formatted_time=$(date -d "@$log_epoch" +"%m-%d %H:%M:%S").$ms_hash
+        
+        log_message=$(cut -d' ' -f6- <<< "$line")
 
         # Format the output line - use epoch+ms for precise sorting
 #        output_epoch="${log_epoch}${ms_hash}"  # Append ms to epoch for precise sorting
 #        output_line="${output_epoch}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
 		output_line="${log_epoch}|${ms_hash}|SYSLOG|$formatted_time|$source_machine|$log_sev_level $log_message"
 
-		format_output+="$output_line\n"
-	done <<< "$pruned_output"
+        format_output+="$output_line\n"
+    done <<< "$pruned_output"
 
-	# Save temporal+include+exclude+format syslog fetch
+	#save temporal+include+exclude+format syslog fetch
 	if [[ "$enable_debug" != "0" && "$enable_fetch_filter_debug" != "0" ]]; then
 		echo -e "$format_output" > "$dbg_format_syslog_file"
 	fi
-
-	format_line_count=$(echo -e "$format_output" | wc -l | awk '{print $1}')
+	
+    format_line_count=$(echo -e "$format_output" | wc -l | awk '{print $1}')
 #	dbg_log "$debug_sever" "format: $format_line_count line(s) after formatting"
-	dbg_log "$debug_sever" "format: $(($format_line_count - 1)) line(s) after formatting"  # off by one somewhere
+	dbg_log "$debug_sever" "format: $(($format_line_count - 1)) line(s) after formatting"    # off by one somewhere...
 
 	##################################################################################################
 
 	# get last runtime and prepend onto the vitals
 
     # write the value to a temp file (this proc gets spawned in a subshell...)
-	echo "$syslog_processing_vitals" > "$proc_vitals_file"
+    echo "$syslog_processing_vitals" > "$proc_vitals_file"
 
-	# Output the filtered and limited results
-	echo -e "$format_output"
-
+    # Output the filtered and limited results
+    echo -e "$format_output"
 }
 
-select_severity() {
+select_severity() {			# takes sev # and returns SEV NAME STRING (DEBUG, INFO, ...)
     local idx="$1"
 	dbg_log "$debug_sever"  "select_severity: lookup: $idx  Result: ${severity_levels[$idx]:-DEBUG}"
     echo "${severity_levels[$idx]:-DEBUG}"
 }
 
-temporal_color() {
+temporal_color() {			# returns the color to be applied based on temporal age of a log item
     local time_diff="$1"
     local log_message="$2"
 
-    if [[ $time_diff -le $recent_period ]]; then
+    if [[ $time_diff -le $fresh_period ]]; then
         [[ "$log_message" == *"$debug_app"* ]] && echo "$debug_color" || echo "$recent_color"
     elif [[ $time_diff -le $aging_period ]]; then
         echo "$aging_color"
@@ -673,12 +663,12 @@ temporal_color() {
     fi
 }
 
-set_hilt_color() {
+set_hilt_color() {			# returns the color to be used based on an index (highlight colors...)
     local idx="$1"
     echo "${highlight_colors[$idx]:-$col_cyan}"
 }
 
-calculate_time_difference_ns() {
+calc_time_delta_ns() {		# calcs/returns difference between two ns times, with unit scaling
   local start_ns="$1"
   local end_ns="$2"
 
@@ -719,24 +709,24 @@ calculate_time_difference_ns() {
   echo "${scaled_difference} ${unit}"
 }
 
-script_start() {
+script_start() {			# snaps start time and debugs vitals
 	start_nanotime=$(date +%s%N)
 	dbg_log "$debug_sever" "---------------------------------------------------"
 	dbg_log "$debug_sever" "Started: $start_nanotime"
 }
 
-script_complete() {
+script_complete() {			# snaps end time, calcs dur, saves last_dur, and debugs vitals
 	end_nanotime=$(date +%s%N)
-	dur_nanotime=$(calculate_time_difference_ns "$start_nanotime" "$end_nanotime")
+	dur_nanotime=$(calc_time_delta_ns "$start_nanotime" "$end_nanotime")
+	
 	dbg_log "$debug_sever" "Finished: $end_nanotime - Took: $dur_nanotime"
+	dbg_log "$debug_sever" "==================================================="
 	
 	#save duration to last duration file here
 	echo "$dur_nanotime" > "$last_dur_file"
-	
-	dbg_log "$debug_sever" "==================================================="
 }
 
-get_pid_chain() {
+get_pid_chain() {			# emit series of PIDs from (init) 1 ... Subject_PID 
     local pid="$1"
     local pid_chain="$pid"
 
@@ -748,7 +738,7 @@ get_pid_chain() {
     echo "$pid_chain"
 }
 
-get_pid_chain_rev() {
+get_pid_chain_rev() {		# emit series of PIDs from Subject_PID ... 1 (init)
     local pid="$1"
     local pid_chain="$pid"
 
@@ -759,6 +749,18 @@ get_pid_chain_rev() {
 
     echo "$pid_chain"
 }
+
+get_syslog_header() {		# blah
+    local chache_hit="$1"
+
+#  Ok there are three contexts when this proc is called
+#	1) Normal: prior to emitting the syslog content to the widget - moon spinner
+#	2) Starved: prior to emitting 'no matching logs' output to the widget - moon spinner
+#	3) Throttled: in the event of a cache hit  - in this case, make us of the - snowflake spinner
+
+
+}
+
 
 ##################################################################################################
 
@@ -786,7 +788,7 @@ hilt_cyan_list="${7:-}"      	# Optional to highlight a specifc term cyan
 hilt_grn_list="${8:-}"      	# Optional to highlight a specifc term green
 hilt_yel_list="${9:-}"      	# Optional to highlight a specifc term yellow
 hilt_red_list="${10:-}"    	 	# Optional to highlight a specifc term red
-recent_period="${11:-30}"     	# Optional to temporally highlight a specifc entry w/ 'Fresh' decorations
+fresh_period="${11:-30}"     	# Optional to temporally highlight a specifc entry w/ 'Fresh' decorations
 aging_period="${12:-120}"     	# Optional to temporally highlight a specifc entry w/ 'Aging' decorations
 temporal_seconds="${13:-3600}"  # Optional temporal period for log fetching.
 
@@ -804,8 +806,6 @@ IFS=',' read -ra hilt_yel_terms <<< "$hilt_yel_list"
 IFS=',' read -ra hilt_red_terms <<< "$hilt_red_list"
 highlight_groups=("hilt_cyan_terms" "hilt_grn_terms" "hilt_yel_terms" "hilt_red_terms")
 
-##################################################################################################
-
 # --- Multi-Filter setup (using 'Include then Exclude' approach) ---
 # build filter arrays then build regex constructs therefrom
 include_filters=()
@@ -821,7 +821,9 @@ for keyword in "${keyword_list[@]}"; do
     fi
 done
 
-# Build include and exclude regexe constructs from filter arrays to be used in filtering syslog
+##################################################################################################
+
+# Build include and exclude regexe constructs to be used in filtering syslog
 include_regex=""
 exclude_regex=""
 
@@ -865,7 +867,6 @@ fi
 severity_string=$(select_severity "$tgt_log_sev_no")
 cache_source="\${font DejaVu Sans Mono:size=12:style=Bold}SYSLOG\${font}"
 display_header=""
-
 display_header+="\${$col_orange}$cache_source\${$col_orange} "
 display_header+="entries ≥ \${$col_cyan}$severity_string \${$col_orange}(\${$col_white}Recent, \${$col_ltgray}Aging, \${$col_dkgray}Aged\${$col_orange})"
 [[ -n "$filter_display" ]] && display_header+="\n   \${font}\${$col_orange}[$filter_display\${$col_orange}]"
@@ -886,9 +887,8 @@ if [[ -f "$last_run_file" ]]; then
             cached_payload=$(<"$content_cache_file")
 			spinner="$cache_spinner"
 			echo "$spinner_decor$spinner$spinner_undecor$display_header"
-#FIXME 
 			echo "$cached_payload"
-			dbg_echo_log_attn "$debug_sever" "Logs.sh rate limit exceeded - cache_hit"
+			dbg_echo_log_attn "$debug_sever" "Log rate limit exceeded - cache_hit"
 			script_complete
 			exit 0
         else
@@ -899,6 +899,9 @@ if [[ -f "$last_run_file" ]]; then
             exit 0
         fi
 	fi
+else	# file is MIA so create it
+	echo_log "$error_sever" "last_run_file is MIA - creating it..."
+	touch "$last_run_file"
 fi
 
 ##################################################################################################
@@ -927,9 +930,7 @@ fi
 
 ##################################################################################################
 
-# --- Fetch and Process Logs ---
-
-# Proceed with normal fresh fetch, recording start time in file
+# Otherwise, proceed with normal fresh fetch, recording start time in file
 echo "$current_time_ms" > "$last_run_file"
 
 # Calculate how many logs to pull initially
@@ -940,14 +941,16 @@ if [[ -n "$keyword_filter" ]]; then
 fi
 
 fetch_entry_count=$((max_entry_count * fetch_multiplier))
+#dbg_log "$debug_sever" "Generating log entries."
 
-fetch_start_nanotime=$(date +%s%N)
+##################################################################################################
 
-all_logs=$(fetch_syslog | sort -n -t'|' -k1 | tail -n "$max_entry_count")	# <-- spawns a subshell due to command substitution - need to pass 
-syslog_processing_vitals=$(<"$proc_vitals_file")	# vitals' variable contents via file (fetch_syslog saves the var to the file)
+# --- Fetch and Process Logs ---
+all_logs=$(fetch_syslog | sort -n -t'|' -k1 | tail -n "$max_entry_count")
+# ^^^this^^^ spawns a subshell - due to command substitution - need to pass 
+# vitals' variable contents via file (fetch_syslog saves the var to the file)
+syslog_processing_vitals=$(<"$proc_vitals_file")
 
-fetch_end_nanotime=$(date +%s%N)
-fetch_dur_nanotime=$(calculate_time_difference_ns "$fetch_start_nanotime" "$fetch_end_nanotime")
 
 # append the proc vitals onto header line
 last_dur=$(<"$last_dur_file")
@@ -960,22 +963,21 @@ display_header+="\n"
 
 # Handle no logs case
 if [[ -z "$all_logs" ]]; then
-	echo -e "$spinner_decor$spinner$spinner_undecor$display_header$cache_content\n"
+	echo -e "$spinner_decor$spinner$spinner_undecor$display_header$cache_content\n" #had \n
     echo "\${$col_dkgray}No logs available matching criteria"
-	dbg_echo_log "$debug_sever No logs available matching criteria."
+	dbg_echo_log "$debug_sever No matching criteria."
 	script_complete
     exit 0
 fi
 
 ##### dbg_log "$debug_sever" "filter_display: $filter_display"  # placed here after log ingestion to avoid filtering on this
 
+cache_content=""
 
 ##################################################################################################
 
 # --- Build Output Content ---
-# loop through the temporal fetched, included/exclude filtered, pruned and 'formatted' logs and build the balance of the display content.
-
-cache_content=""
+# loop through logs and build the balance of the display content.
 
 while IFS='|' read -r log_epoch ms_hash source formatted_time source_machine log_message; do
     time_diff=$((current_time - log_epoch))
@@ -990,15 +992,11 @@ while IFS='|' read -r log_epoch ms_hash source formatted_time source_machine log
         formatted_line="$log_message"
     fi
 
-	# Highlight source_machine it it exists in the include_filter
-	# 
-	if [[ -n "$include_filters" ]]; then
-		for keyword in $include_filters; do
-			escaped_keyword=$(echo "$keyword" | sed 's/[][\\^$.*+?(){}|]/\\&/g')
-			source_machine=$(sed "s/\($escaped_keyword\)/\${$include_color}\1\${$tenure_color}/Ig" <<< "$source_machine")
-		done
-	fi
-
+    # Highlight keyword inside log message if filtering is active
+    if [[ -n "$keyword_filter" ]]; then
+	    formatted_line=$(sed "s/\($keyword_filter\)/\${$col_orange}\1\${$tenure_color}/Ig" <<< "$formatted_line")
+    fi
+	
 	# Apply all highlight groups
 	for idx in "${!highlight_groups[@]}"; do
 		group_name="${highlight_groups[$idx]}"
@@ -1010,10 +1008,7 @@ while IFS='|' read -r log_epoch ms_hash source formatted_time source_machine log
 		if [[ ${#terms[@]} -gt 0 ]]; then
 			for term in "${terms[@]}"; do
 				if [[ -n "$term" ]]; then
-					#highline the elements in the msg
 					formatted_line=$(sed "s/\($term\)/\${$decor_color}\1\${$tenure_color}/Ig" <<< "$formatted_line")
-					#and in the source machine field...
-					source_machine=$(sed "s/\($term\)/\${$decor_color}\1\${$tenure_color}/Ig" <<< "$source_machine")
 				fi
 			done
 		fi
